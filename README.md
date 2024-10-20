@@ -1,4 +1,4 @@
-# 📋 Weight-Based Task Manager
+# 📋 Next-Based Task Manager
 
 A modern task management application built with Next.js that helps you organize and prioritize tasks based on their weight/importance.
 
@@ -25,7 +25,7 @@ This project allows users to:
 1. Clone the repository
 
 ```bash
-git clone https://github.com/yourusername/weight-task-manager.git
+git clone https://github.com/alexcraviotto/next-task-manager.git
 cd weight-task-manager
 ```
 
@@ -35,11 +35,13 @@ cd weight-task-manager
 npm install
 # or
 yarn install
+
 ```
 
 3. Create a `.env.local` file following the `.env.example` template
 
 ```bash
+
 cp .env.example .env.local
 ```
 
@@ -82,6 +84,7 @@ We use conventional commits to maintain a clean git history. Your commits must f
 - `feat:` - New features
 - `fix:` - Bug fixes
 - `docs:` - Documentation changes
+
 - `style:` - Code style changes (formatting, etc)
 - `refactor:` - Code refactoring
 - `test:` - Adding or modifying tests
