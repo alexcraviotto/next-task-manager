@@ -14,12 +14,15 @@
     "test": "jest"
   },
   "dependencies": {
+    "@libsql/client": "^0.14.0",
+    "@prisma/adapter-libsql": "^5.21.1",
     "@prisma/client": "^5.21.1",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "jest-environment-jsdom": "^29.7.0",
     "lucide-react": "^0.453.0",
     "next": "15.0.1",
+    "prisma": "5.12.0-dev.21",
     "react": "^18",
     "react-dom": "^18",
     "tailwind-merge": "^2.5.4",
