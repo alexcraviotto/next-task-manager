@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build && npx prisma generate",
+    "build": "next build && pnpx prisma generate",
     "start": "next start",
     "lint": "next lint",
     "lint-staged": "lint-staged",
@@ -14,7 +14,7 @@
     "test": "jest"
   },
   "dependencies": {
-    "@libsql/client": "^0.14.0",
+    "@libsql/client": "^0.8.1",
     "@prisma/adapter-libsql": "^5.21.1",
     "@prisma/client": "^5.21.1",
     "class-variance-authority": "^0.7.0",
@@ -36,7 +36,7 @@
     "@testing-library/react": "^16.0.1",
     "@types/jest": "^29.5.13",
     "@types/jest-json-schema": "^6.1.4",
-    "@types/node": "^20",
+    "@types/node": "^20.17.1",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "conventional-changelog-atom": "^5.0.0",
