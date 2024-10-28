@@ -1,8 +1,14 @@
 import Image from "next/image";
+import Head from "next/head"; // Importa el componente Head
 
 export default function Home() {
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden">
+      <Head>
+        <title>Next Release Project</title>{" "}
+        {/* Cambia esto al título deseado */}
+      </Head>
+
       {/* Capa de fondo usando el componente Image */}
       <Image
         src="/background.png" // Usa el nombre y la extensión de tu imagen
