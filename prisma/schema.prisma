@@ -1,0 +1,95 @@
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+// Modelo users
+model User {
+  id        Int       @id @default(autoincrement())
+  username  String    @unique
+  email     String    @unique
+  password  String
+  isAdmin   Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  organizations UserOrganization[] // Relación hacia UserOrganization
+  tasks       Task[]               @relation("UserTasks")
+  taskRatings TaskRating[]
+}
+
+// Modelo organizations
+model Organization {
+  id          Int                @id @default(autoincrement())
+  name        String             @unique
+  createdById Int
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  users       UserOrganization[] // Relación hacia UserOrganization
+  tasks       Task[]
+  versions    Version[]
+}
+
+// Tabla de relación user_organizations
+model UserOrganization {
+  userId         Int
+  organizationId Int
+  User           User         @relation(fields: [userId], references: [id])
+  Organization   Organization @relation(fields: [organizationId], references: [id])
+
+  @@id([userId, organizationId])
+}
+
+// Modelo tasks
+model Task {
+  id              Int           @id @default(autoincrement())
+  title           String
+  description     String?
+  organizationId  Int
+  createdById     Int
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  organization    Organization  @relation(fields: [organizationId], references: [id])
+  createdBy       User          @relation("UserTasks", fields: [createdById], references: [id])
+  taskRatings     TaskRating[]
+  versionTasks    VersionTask[]
+}
+
+// Tabla de relación version_tasks
+model VersionTask {
+  versionId Int
+  taskId    Int
+  Version   Version @relation(fields: [versionId], references: [id])
+  Task      Task    @relation(fields: [taskId], references: [id])
+
+  @@id([versionId, taskId])
+}
+
+// Modelo task_ratings con restricciones
+model TaskRating {
+  id                Int    @id @default(autoincrement())
+  taskId            Int
+  userId            Int
+  clientSatisfaction Int?   @default(0) @map("client_satisfaction")
+  clientWeight      Int?   @default(0) @map("client_weight")
+  effort            Int?   @default(0)
+  task              Task   @relation(fields: [taskId], references: [id])
+  user              User   @relation(fields: [userId], references: [id])
+
+  @@unique([taskId, userId])
+}
+
+// Modelo versions
+model Version {
+  id             Int           @id @default(autoincrement())
+  organizationId Int
+  versionNumber  Int
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  organization   Organization  @relation(fields: [organizationId], references: [id])
+  versionTasks   VersionTask[]
+}
