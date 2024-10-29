@@ -1,49 +1,49 @@
+"use client";
+
 import Image from "next/image";
-import Head from "next/head"; // Importa el componente Head
+import { Button } from "@/components/ui/button";
+import { ArrowRight } from "lucide-react";
 
 export default function Home() {
   return (
-    <div className="min-h-screen flex flex-col relative overflow-hidden">
-      <Head>
-        <title>Next Release Project</title>{" "}
-        {/* Cambia esto al título deseado */}
-      </Head>
-
-      {/* Capa de fondo usando el componente Image */}
+    <div className="min-h-screen flex flex-col relative overflow-hidden bg-gradient-to-br from-primary/20 via-background to-secondary/20">
       <Image
-        src="/background.png" // Usa el nombre y la extensión de tu imagen
+        src="/background.png"
         alt="Background Image"
         layout="fill"
         objectFit="cover"
-        className="absolute inset-0 z-0"
+        className="absolute inset-0 z-0 opacity-50"
+        priority
       />
-      {/* Overlay para oscurecer la imagen */}
-      <div className="absolute inset-0 bg-black/30 z-10" />
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/50 via-background/50 to-secondary/60 z-10" />
 
-      <header className="p-4 flex justify-end relative z-20">
+      <header className="p-4 flex justify-between items-center relative z-20">
+        <div className="text-2xl font-bold text-primary">Next Release</div>
         <nav className="space-x-4 flex">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-transparent text-black gap-2 hover:bg-[#f0f0f0] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="/login" // Cambia esto a la ruta correspondiente para iniciar sesión
-          >
-            Iniciar sesión
-          </a>
-          <a
-            className="rounded-full border border-solid border-black transition-colors flex items-center justify-center bg-black text-white gap-2 hover:bg-[#333] dark:hover:bg-[#444] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="/register" // Cambia esto a la ruta correspondiente para registrarse
-          >
-            Registrarse
-          </a>
+          <Button variant="ghost" asChild>
+            <a href="/login">Iniciar sesión</a>
+          </Button>
+          <Button asChild>
+            <a href="/register">Registrarse</a>
+          </Button>
         </nav>
       </header>
 
-      <main className="flex-grow flex items-center justify-center relative z-20">
-        <h1 className="text-4xl md:text-6xl font-bold text-black text-center">
-          Next Release
-          <br />
-          Project
+      <main className="flex-grow flex flex-col items-center justify-center relative z-20 px-4">
+        <h1 className="text-4xl md:text-7xl font-bold text-center mb-6 bg-clip-text text-transparent bg-gradient-to-r from-primary to-gray-400">
+          Next Release Project
         </h1>
+        <p className="text-xl md:text-2xl text-center mb-8 max-w-2xl">
+          Acelera tu desarrollo con Next.js y despliega con confianza
+        </p>
+        <Button size="lg" className="text-lg">
+          Comenzar ahora <ArrowRight className="ml-2" />
+        </Button>
       </main>
+
+      <footer className="text-center p-4 text-sm text-muted-foreground relative z-20">
+        © 2024 Next Release Project. Todos los derechos reservados.
+      </footer>
     </div>
   );
 }
