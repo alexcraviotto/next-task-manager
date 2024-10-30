@@ -5,7 +5,7 @@ import Providers from "./Providers";
 
 const beVietnamPro = Be_Vietnam_Pro({
   subsets: ["latin"],
-  weight: ["400"],
+  weight: ["700"],
 });
 
 export const metadata: Metadata = {
