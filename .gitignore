@@ -38,6 +38,7 @@ next-env.d.ts
 .env.production
 
 # prisma
+prisma
 /prisma/dev.db
 /prisma/.env
 /prisma/.env.development
@@ -47,3 +48,6 @@ next-env.d.ts
 /prisma/client/node_modules
 /prisma/client/yarn.lock
 .dev.db
+
+# pnpm
+pnpm-lock.yaml
