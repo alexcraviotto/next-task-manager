@@ -1,10 +1,7 @@
 import { AuthOptions } from "next-auth";
-import { PrismaAdapter } from "@next-auth/prisma-adapter";
-import { PrismaClient } from "@prisma/client";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcrypt";
-
-const prisma = new PrismaClient();
+import { prisma } from "./database";
 
 export const authOptions: AuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
@@ -48,7 +45,6 @@ export const authOptions: AuthOptions = {
       },
     }),
   ],
-  adapter: PrismaAdapter(prisma),
   session: { strategy: "jwt" },
   callbacks: {
     async jwt({ token, user }) {
