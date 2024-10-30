@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build && pnpx prisma generate",
+    "build": "pnpx prisma db push && pnpx prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
     "lint-staged": "lint-staged",

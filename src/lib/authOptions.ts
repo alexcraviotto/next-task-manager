@@ -16,25 +16,35 @@ export const authOptions: AuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        console.log(credentials);
         if (!credentials?.email || !credentials?.password) {
-          throw new Error("Username and password are required");
+          throw new Error("Email and password are required");
         }
+
         const user = await prisma.user.findUnique({
           where: { email: credentials.email },
         });
+
         if (!user) {
           throw new Error("User not found");
         }
+
         const isValidPassword = await bcrypt.compare(
           credentials.password,
           user.password,
         );
+
         if (!isValidPassword) {
           throw new Error("Invalid password");
         }
 
-        return user;
+        return {
+          id: user.id.toString(),
+          email: user.email,
+          username: user.username,
+          isAdmin: user.isAdmin,
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt,
+        };
       },
     }),
   ],
@@ -43,19 +53,16 @@ export const authOptions: AuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.id = user.id;
         token.isAdmin = user.isAdmin;
       }
       return token;
     },
-    async session({ session, token }) {
-      if (token) {
-        session.user = {
-          ...session.user,
-          id: token.id as string,
-          isAdmin: token.isAdmin as boolean,
-        };
-      }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async session(session: any) {
+      const user = await prisma.user.findUnique({
+        where: { email: session.token.email },
+      });
+      session.user = user;
       return session;
     },
   },
