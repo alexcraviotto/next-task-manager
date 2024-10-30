@@ -49,5 +49,3 @@ prisma
 /prisma/client/yarn.lock
 .dev.db
 
-# pnpm
-pnpm-lock.yaml
