@@ -1,6 +1,7 @@
 /**
  * @jest-environment node
  */
+import "dotenv/config";
 
 import { NextRequest } from "next/server";
 
