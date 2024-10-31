@@ -11,7 +11,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
       <AppSidebar projectId={projectId} />
-      <main className="w-full">
+      <main className="w-full m-4">
         {/* <SidebarTrigger /> */}
         <TopBar />
         {children}

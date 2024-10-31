@@ -13,7 +13,7 @@ export default function TopBar() {
     ? pathname.split("/").slice(-1)[0]
     : "";
   return (
-    <div className="flex h-14 items-center justify-between bg-white px-4 shadow-sm">
+    <div className="flex h-14 items-center justify-between">
       <div className="flex items-center space-x-4">
         <div className="flex items-center space-x-2">
           <LayoutDashboardIcon className="h-5 w-5" />
