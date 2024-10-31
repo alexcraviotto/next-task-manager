@@ -5,6 +5,7 @@ import {
   UsersRound,
   History as HistoryIcon,
   LucideProps,
+  Settings,
 } from "lucide-react";
 import { ForwardRefExoticComponent, RefAttributes } from "react";
 
@@ -56,5 +57,6 @@ export const slugsToName: SlugToName = {
   tasks: { name: "Tareas", icon: SquareCheck },
   members: { name: "Miembros", icon: UsersRound },
   versions: { name: "Versiones", icon: HistoryIcon },
+  settings: { name: "Ajustes", icon: Settings },
   "": { name: "Inicio", icon: Home },
 };
