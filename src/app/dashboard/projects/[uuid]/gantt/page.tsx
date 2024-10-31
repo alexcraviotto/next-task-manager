@@ -6,5 +6,5 @@ export default function Dashboard({
   const { projectId } = params;
   console.log("🚀 ~ projectId:", projectId);
 
-  return <h1>Home</h1>;
+  return <h1>Diagrama de Gantt</h1>;
 }
