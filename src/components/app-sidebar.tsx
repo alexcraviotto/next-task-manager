@@ -1,13 +1,4 @@
 "use client";
-import {
-  UsersRound,
-  Home,
-  ChartBar,
-  SquareCheck,
-  Settings,
-  History,
-  ChevronDown,
-} from "lucide-react";
 
 import {
   Sidebar,
@@ -28,39 +19,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useEffect } from "react";
-
-const items = [
-  {
-    title: "Inicio",
-    url: "/dashboard/projects/",
-    icon: Home,
-    slug: null,
-  },
-  {
-    title: "Diagrama de Gantt",
-    url: "#",
-    icon: ChartBar,
-    slug: "gantt",
-  },
-  {
-    title: "Tareas",
-    url: "#",
-    icon: SquareCheck,
-    slug: "tasks",
-  },
-  {
-    title: "Miembros",
-    url: "#",
-    icon: UsersRound,
-    slug: "members",
-  },
-  {
-    title: "Versiones",
-    url: "#",
-    icon: History,
-    slug: "versions",
-  },
-];
+import { sidebarItems, slugsToName } from "@/lib/types";
+import { ChevronDown, Settings } from "lucide-react";
 
 // Es un mockup de ejemplo, cuando tengamos la API de proyectos, esto se cambiará.
 const availableProjects = [
@@ -80,9 +40,16 @@ export function AppSidebar({
   projectId: string | string[] | undefined;
 }) {
   const router = useRouter();
-  const pathname = usePathname();
-  console.log(projectId);
+  const pathname = usePathname() || ""; // Evitar undefined
 
+  const handleProjectChange = (id: string) => {
+    router.push(`/dashboard/projects/${id}`);
+  };
+
+  const buildUrl = (slug: string) => {
+    // Construye la URL usando el projectId y el slug
+    return `/dashboard/projects/${projectId}/${slug}`;
+  };
   useEffect(() => {
     // Aqui comprobaremos si el uuid del parametro existe y pertenece al usuario
   }, []);
@@ -104,9 +71,7 @@ export function AppSidebar({
                 {availableProjects.map((project) => (
                   <DropdownMenuItem
                     key={project.id}
-                    onClick={() =>
-                      router.push("/dashboard/projects/" + project.id)
-                    }
+                    onClick={() => handleProjectChange(project.id)}
                   >
                     <span>{project.title}</span>
                   </DropdownMenuItem>
@@ -118,20 +83,27 @@ export function AppSidebar({
       </SidebarHeader>
       <SidebarContent className="m-4">
         <SidebarGroup>
-          {/* <SidebarGroupLabel className="font-bold text-md tracking-tight">NextTaskManager</SidebarGroupLabel> */}
           <SidebarGroupContent>
             <SidebarMenu className="space-y-4">
-              {items.map((item) => (
+              {sidebarItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
-                    <a href={item.url}>
+                    <button onClick={() => router.push(buildUrl(item.slug))}>
                       <item.icon />
                       <span
-                        className={`text-lg tracking-tight ${item.slug === null ? "font-bold" : pathname.includes(item.slug) ? "font-bold" : "opacity-60"}`}
+                        className={`text-lg tracking-tight ${
+                          pathname.split("/").pop() === item.slug ||
+                          (item.title === "Inicio" &&
+                            !Object.keys(slugsToName).includes(
+                              pathname.split("/").pop() ?? "",
+                            ))
+                            ? "font-bold"
+                            : "opacity-60"
+                        }`}
                       >
                         {item.title}
                       </span>
-                    </a>
+                    </button>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -139,16 +111,22 @@ export function AppSidebar({
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter>
-        <SidebarMenuButton asChild className="m-4 mb-8">
-          <a href="settings">
+      <SidebarFooter className="m-4">
+        <SidebarMenuButton
+          asChild
+          className="mb-8 cursor-pointer"
+          onClick={() => router.push(buildUrl("settings"))}
+        >
+          <div className="flex items-center">
             <Settings />
             <span
-              className={`text-lg tracking-tight ${pathname.includes("settings") ? "font-semibold" : "opacity-70"}`}
+              className={`text-lg tracking-tight ${
+                pathname.includes("settings") ? "font-semibold" : "opacity-70"
+              }`}
             >
               {"Ajustes"}
             </span>
-          </a>
+          </div>
         </SidebarMenuButton>
       </SidebarFooter>
     </Sidebar>
