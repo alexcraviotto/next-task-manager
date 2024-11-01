@@ -2,8 +2,14 @@
 import { Button } from "@/components/ui/button";
 import { usePathname } from "next/navigation";
 import { slugsToName } from "@/lib/types";
-import { LayoutDashboardIcon } from "lucide-react";
+import { LayoutDashboardIcon, LogOutIcon } from "lucide-react";
 import { signOut } from "next-auth/react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export default function TopBar() {
   const pathname = usePathname();
@@ -12,21 +18,47 @@ export default function TopBar() {
   )
     ? pathname.split("/").slice(-1)[0]
     : "";
+
   return (
-    <div className="flex h-14 items-center justify-between">
-      <div className="flex items-center space-x-4">
-        <div className="flex items-center space-x-2">
-          <LayoutDashboardIcon className="h-5 w-5" />
+    <div className="flex flex-row items-center justify-between px-3 sm:px-6 h-12 sm:h-14">
+      <div className="flex items-center gap-2 sm:gap-4">
+        <div className="flex items-center">
+          <LayoutDashboardIcon className="h-4 w-4 sm:h-5 sm:w-5" />
         </div>
-        <div className="h-6 w-px bg-gray-300" />
-        <div className="text-lg">{slugsToName[slug].name}</div>
+        <div className="hidden sm:block h-6 w-px bg-gray-300" />
+        <div className="text-sm sm:text-base font-medium truncate max-w-[200px] sm:max-w-none">
+          {slugsToName[slug].name}
+        </div>
       </div>
+
+      {/* Mobile version with icon + tooltip */}
+      <div className="sm:hidden">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="hover:bg-gray-100 rounded-full p-1.5"
+                onClick={async () => await signOut()}
+              >
+                <LogOutIcon className="h-4 w-4" />
+                <span className="sr-only">Cerrar sesión</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Cerrar sesión</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
+
+      {/* Desktop version with text */}
       <Button
-        variant="secondary"
-        className="bg-black text-white hover:bg-gray-800"
         onClick={async () => await signOut()}
+        className="hidden sm:flex items-center gap-2 hover:scale-105 transition-transform duration-200"
       >
-        Cerrar sesión
+        <span className="text-sm">Cerrar sesión</span>
       </Button>
     </div>
   );

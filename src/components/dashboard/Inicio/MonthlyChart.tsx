@@ -33,7 +33,7 @@ export default function MonthlyChart() {
       <ChartContainer
         config={{
           value: {
-            label: "Valor",
+            label: "Tareas",
             color: "hsl(var(--foreground))",
           },
         }}
