@@ -21,10 +21,10 @@ export default function Home() {
         <div className="text-2xl font-bold text-primary">Next Release</div>
         <nav className="space-x-4 flex">
           <Button variant="ghost" asChild>
-            <a href="/login">Iniciar sesión</a>
+            <a href="/auth/login">Iniciar sesión</a>
           </Button>
           <Button asChild>
-            <a href="/register">Registrarse</a>
+            <a href="register">Registrarse</a>
           </Button>
         </nav>
       </header>
