@@ -1,3 +1,7 @@
+import { DashboardStructure } from "@/components/dashboard/DashboardStructure";
+import { DashboardTitle } from "@/components/dashboard/DashboardTitle";
+import VersionsBoard from "@/components/dashboard/versions/VersionsBoard";
+
 export default function Dashboard({
   params,
 }: {
@@ -6,5 +10,10 @@ export default function Dashboard({
   const { projectId } = params;
   console.log("🚀 ~ projectId:", projectId);
 
-  return <h1>Versiones</h1>;
+  return (
+    <DashboardStructure>
+      <DashboardTitle title="⚡️ Versiones" />
+      <VersionsBoard projectId={projectId} />
+    </DashboardStructure>
+  );
 }
