@@ -1,8 +1,10 @@
 "use client";
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 
 export default function RegisterForm() {
   const [username, setUsername] = useState("");
+  const [surname, setSurname] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -11,7 +13,7 @@ export default function RegisterForm() {
     const response = await fetch("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, email, password }),
+      body: JSON.stringify({ username, surname, email, password }),
     });
     const data = await response.json();
     console.log(data);
@@ -32,8 +34,8 @@ export default function RegisterForm() {
       />
       <input
         type="text"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
+        value={surname}
+        onChange={(e) => setSurname(e.target.value)}
         placeholder="Apellidos"
         className="w-full p-3 mb-4 border border-gray-300 rounded-lg focus:outline-none focus:border-black"
       />
@@ -51,12 +53,12 @@ export default function RegisterForm() {
         placeholder="Contraseña"
         className="w-full p-3 mb-6 border border-gray-300 rounded-lg focus:outline-none focus:border-black"
       />
-      <button
+      <Button
         type="submit"
-        className="w-full p-3 bg-black text-white rounded-lg font-semibold"
+        className="w-full bg-black text-white font-semibold hover:bg-gray-800 transition-colors"
       >
         Continuar
-      </button>
+      </Button>
       <p className="mt-4 text-center">
         ¿Tienes cuenta?{" "}
         <a href="/login" className="text-black underline">

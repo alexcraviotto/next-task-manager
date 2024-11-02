@@ -24,10 +24,7 @@ export default function RootLayout({
         <Providers>
           <div className="flex min-h-screen">
             {/* Sección de la imagen de fondo */}
-            <div
-              className="w-1/2 bg-cover bg-center"
-              style={{ backgroundImage: 'url("/background-grey.png")' }}
-            ></div>
+            <div className="w-1/2 bg-cover bg-center bg-[url('/background-grey.png')]"></div>
             {/* Sección del contenido */}
             <div className="w-1/2 flex items-center justify-center bg-white">
               {children}
