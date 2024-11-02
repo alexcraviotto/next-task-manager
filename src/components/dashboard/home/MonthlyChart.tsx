@@ -54,15 +54,13 @@ export default function MonthlyChart() {
             axisLine={false}
             tickLine={false}
             tickMargin={10}
-            angle={-45}
-            textAnchor="end"
             className="text-xs"
           />
           <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
           <Bar
             dataKey="value"
             fill="rgba(39,39,39,.86)"
-            radius={[4, 4, 0, 0]}
+            radius={[20, 20, 20, 20]}
           />
         </BarChart>
       </ChartContainer>
