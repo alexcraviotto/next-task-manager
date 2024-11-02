@@ -1,6 +1,6 @@
 import { DashboardStructure } from "@/components/dashboard/DashboardStructure";
 import { DashboardTitle } from "@/components/dashboard/DashboardTitle";
-import { TaskTable } from "@/components/dashboard/tasks/task-table";
+import { TaskTable } from "@/components/dashboard/tasks/TaskTable";
 
 export default function Dashboard({
   params,
