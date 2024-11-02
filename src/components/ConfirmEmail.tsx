@@ -1,4 +1,5 @@
 "use client";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
@@ -9,7 +10,7 @@ import {
   InputOTPSlot,
 } from "@/components/ui/input-otp";
 
-export default function ConfirmEmailPage() {
+export default function ConfirmEmail() {
   const [showOTP, setShowOTP] = useState(false);
   const [otp, setOtp] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
