@@ -43,7 +43,9 @@ export default function ConfirmEmailPage() {
           Confirmación de email
         </h2>
         <p className="text-gray-600 text-center mb-6">
-          Confirma tu dirección de correo electrónico para acceder.
+          {showOTP
+            ? "Pon el código para registrarte."
+            : "Confirma tu dirección de correo electrónico para acceder."}
         </p>
 
         {/* Condicional para mostrar la imagen o el componente OTP */}
@@ -63,7 +65,7 @@ export default function ConfirmEmailPage() {
                 value={otp}
                 maxLength={6}
                 pattern={"^[0-9]*$"} // Acepta solo numeros
-                onChange={(e) => setOtp(e)}
+                onChange={(e) => setOtp(e)} // Cambia aqui
               >
                 <InputOTPGroup>
                   <InputOTPSlot index={0} />
