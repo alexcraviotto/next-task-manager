@@ -11,7 +11,7 @@ import {
 
 export default function ConfirmEmailPage() {
   const [showOTP, setShowOTP] = useState(false);
-  const [otp] = useState("");
+  const [otp, setOtp] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const router = useRouter();
 
@@ -21,13 +21,19 @@ export default function ConfirmEmailPage() {
   const handleContinueClick = () => {
     if (showOTP) {
       if (otp === correctOTP) {
-        router.push("/success"); // Redirige a la página de éxito
+        router.push("/success"); // Redirige a la pagina de exito
       } else {
         setErrorMessage("El código introducido no es válido.");
       }
     } else {
-      setShowOTP(true); // Muestra el OTP si no se ha mostrado aún
+      setShowOTP(true); // Muestra el OTP si no se ha mostrado aun
     }
+  };
+
+  // Funcion para limpiar el campo OTP
+  const handleClearOTP = () => {
+    setOtp(""); // Limpia el estado del OTP
+    setErrorMessage("");
   };
 
   return (
@@ -39,42 +45,60 @@ export default function ConfirmEmailPage() {
         <p className="text-gray-600 text-center mb-6">
           Confirma tu dirección de correo electrónico para acceder.
         </p>
+
+        {/* Condicional para mostrar la imagen o el componente OTP */}
         <div className="flex justify-center mb-6">
-          <Image
-            src="/email-confirmation.png"
-            alt="Confirmación de email"
-            width={128} // Ancho en pixeles
-            height={128} // Altura en pixeles
-            className="object-contain"
-          />
+          {!showOTP ? (
+            <Image
+              src="/email-confirmation.png"
+              alt="Confirmación de email"
+              width={300}
+              height={300}
+              quality={100}
+              className="object-contain"
+            />
+          ) : (
+            <div className="flex flex-col items-center space-y-4">
+              <InputOTP
+                value={otp}
+                maxLength={6}
+                pattern={"^[0-9]*$"} // Acepta solo numeros
+                onChange={(e) => setOtp(e)}
+              >
+                <InputOTPGroup>
+                  <InputOTPSlot index={0} />
+                  <InputOTPSlot index={1} />
+                  <InputOTPSlot index={2} />
+                  <InputOTPSlot index={3} />
+                  <InputOTPSlot index={4} />
+                  <InputOTPSlot index={5} />
+                </InputOTPGroup>
+              </InputOTP>
+              {errorMessage && (
+                <p className="text-red-500 text-sm">{errorMessage}</p>
+              )}
+              <Button
+                className="w-full bg-gray-200 text-gray-700 hover:bg-gray-300"
+                onClick={handleClearOTP}
+              >
+                Borrar código
+              </Button>
+            </div>
+          )}
         </div>
+
         <Button
           className="w-full mb-4 bg-black text-white hover:bg-gray-800"
           onClick={handleContinueClick}
         >
           Continuar
         </Button>
-        <Button className="w-full border border-gray-300 text-gray-700 hover:bg-gray-100">
+        <Button
+          className="w-full bg-white text-black border border-gray-300 hover:bg-gray-100"
+          onClick={() => router.back()} // Accion para volver a la pagina anterior
+        >
           Volver
         </Button>
-
-        {showOTP && (
-          <div className="mt-6 flex flex-col items-center space-y-4">
-            <InputOTP maxLength={6} pattern={"^[a-zA-Z0-9]*$"}>
-              <InputOTPGroup>
-                <InputOTPSlot index={0} />
-                <InputOTPSlot index={1} />
-                <InputOTPSlot index={2} />
-                <InputOTPSlot index={3} />
-                <InputOTPSlot index={4} />
-                <InputOTPSlot index={5} />
-              </InputOTPGroup>
-            </InputOTP>
-            {errorMessage && (
-              <p className="text-red-500 text-sm">{errorMessage}</p>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );
