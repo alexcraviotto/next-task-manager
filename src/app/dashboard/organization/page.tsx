@@ -7,10 +7,26 @@ export default function OrganizationFormPopup() {
   const [orgName, setOrgName] = useState("");
   const [description, setDescription] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
-  //const [existingOrganizations, setExistingOrganizations] = useState([]); // Simulación de organizaciones existentes
+  const [organizations, setOrganizations] = useState([
+    // Datos para mockup
+    {
+      id: 1,
+      name: "ACME Inc.",
+      description: "Proveedor líder de soluciones tecnológicas",
+    },
+    { id: 2, name: "Adidas", description: "Marca deportiva internacional" },
+    {
+      id: 3,
+      name: "Nike",
+      description: "Fabricante de calzado y ropa deportiva",
+    },
+  ]);
 
   const togglePopup = () => {
     setIsOpen(!isOpen);
+    setErrorMessage(""); // Resetear el mensaje de error al cerrar o abrir el popup
+    setOrgName("");
+    setDescription(""); // Limpiar campos al cerrar el popup
   };
 
   const handleCreateOrganization = (e: React.FormEvent<HTMLFormElement>) => {
@@ -19,27 +35,36 @@ export default function OrganizationFormPopup() {
       setErrorMessage("El nombre de la organización es obligatorio.");
       return;
     }
-    /*
-    // Comprobar si el nombre ya existe en la base de datos (simulación)
-    if (existingOrganizations.includes(orgName)) {
-      setErrorMessage("Ya existe una organización con este nombre.");
+
+    // Verificar si ya existe una organizacion con el mismo nombre
+    const organizationExists = organizations.some(
+      (org) => org.name.toLowerCase() === orgName.toLowerCase(),
+    );
+
+    if (organizationExists) {
+      setErrorMessage("Ya existe una organización con ese nombre.");
       return;
     }
-    */
-    // Logica para crear la organización en la base de datos
 
-    // Limpiar el formulario después de crear la organización
+    // Crear una nueva organizacion mockup y agregarla al estado
+    const newOrganization = {
+      id: organizations.length + 1,
+      name: orgName,
+      description: description,
+    };
+    // Para el posible backend
+    setOrganizations([...organizations, newOrganization]);
     setOrgName("");
     setDescription("");
     setErrorMessage("");
-    togglePopup(); // Cierra el popup
+    togglePopup();
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen p-4 bg-gray-100">
+    <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-gray-100">
       <Button
         onClick={togglePopup}
-        className="bg-black text-white p-3 rounded-lg"
+        className="bg-black text-white p-3 rounded-lg mb-6"
       >
         Crear Nueva Organización
       </Button>
@@ -66,7 +91,7 @@ export default function OrganizationFormPopup() {
                   type="text"
                   placeholder="Introduzca el nombre de la organización"
                   value={orgName}
-                  onChange={(e) => setOrgName(e.target.value)} // Actualiza el nombre de la organización
+                  onChange={(e) => setOrgName(e.target.value)}
                   className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-black"
                 />
               </div>
@@ -75,9 +100,9 @@ export default function OrganizationFormPopup() {
                   Descripción
                 </label>
                 <textarea
-                  placeholder="Describa brevemente su descripción"
+                  placeholder="Describa brevemente su organización"
                   value={description}
-                  onChange={(e) => setDescription(e.target.value)} // Actualiza la descripción
+                  onChange={(e) => setDescription(e.target.value)}
                   className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-black"
                   rows={4}
                 ></textarea>
@@ -100,6 +125,23 @@ export default function OrganizationFormPopup() {
           </div>
         </div>
       )}
+
+      {/* Mostrar organizaciones con un poco más de margen Relacionado con mockup*/}
+      <div className="mt-12">
+        <h3 className="text-xl font-bold mb-4">
+          Estas son tus organizaciones:
+        </h3>
+        <ul>
+          {organizations.map((org) => (
+            <li
+              key={org.id}
+              className="border border-gray-300 p-4 rounded-lg mb-2 text-lg"
+            >
+              {org.name}
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
 }
