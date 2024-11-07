@@ -38,6 +38,7 @@ model Organization {
 model UserOrganization {
   userId         Int
   organizationId Int
+  weight         Int
   User           User         @relation(fields: [userId], references: [id])
   Organization   Organization @relation(fields: [organizationId], references: [id])
 

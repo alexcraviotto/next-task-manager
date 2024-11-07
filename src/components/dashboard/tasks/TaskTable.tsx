@@ -37,6 +37,7 @@ interface Task {
   progress: number;
   dependencies: number;
   project: string;
+  weight: number;
 }
 
 export function TaskTable({ projectId }: { projectId: string }) {
@@ -52,6 +53,7 @@ export function TaskTable({ projectId }: { projectId: string }) {
       progress: 0,
       dependencies: 0,
       project: "",
+      weight: 0,
     },
     {
       id: 2,
@@ -63,6 +65,7 @@ export function TaskTable({ projectId }: { projectId: string }) {
       progress: 0,
       dependencies: 0,
       project: "",
+      weight: 0,
     },
   ]);
 
@@ -95,6 +98,7 @@ export function TaskTable({ projectId }: { projectId: string }) {
       progress: 0,
       dependencies: 0,
       project: "",
+      weight: 0,
     };
     setEditingTask(newTask);
     setIsDialogOpen(true);
@@ -343,15 +347,15 @@ export function TaskTable({ projectId }: { projectId: string }) {
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="project" className="text-right">
-                Proyecto
+                Peso
               </Label>
               <Input
                 id="project"
-                value={editingTask?.project || ""}
+                value={editingTask?.weight || 0}
                 onChange={(e) =>
                   setEditingTask(
                     editingTask
-                      ? { ...editingTask, project: e.target.value }
+                      ? { ...editingTask, weight: Number(e.target.value) }
                       : null,
                   )
                 }
