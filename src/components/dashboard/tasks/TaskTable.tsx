@@ -36,7 +36,6 @@ interface Task {
   endDate: string;
   progress: number;
   dependencies: number;
-  project: string;
   weight: number;
 }
 
@@ -52,7 +51,6 @@ export function TaskTable({ projectId }: { projectId: string }) {
       endDate: "20/10/2024",
       progress: 0,
       dependencies: 0,
-      project: "",
       weight: 0,
     },
     {
@@ -64,7 +62,6 @@ export function TaskTable({ projectId }: { projectId: string }) {
       endDate: "20/10/2024",
       progress: 0,
       dependencies: 0,
-      project: "",
       weight: 0,
     },
   ]);
@@ -97,7 +94,6 @@ export function TaskTable({ projectId }: { projectId: string }) {
       endDate: "",
       progress: 0,
       dependencies: 0,
-      project: "",
       weight: 0,
     };
     setEditingTask(newTask);
@@ -148,7 +144,7 @@ export function TaskTable({ projectId }: { projectId: string }) {
                   Dependientes
                 </TableHead>
                 <TableHead className="p-2 sm:p-4 text-xs sm:text-sm w-[120px]">
-                  Proyecto
+                  Peso
                 </TableHead>
                 {/* Columna fija derecha */}
                 <TableHead className="p-2 sm:p-4 text-xs sm:text-sm sticky right-0 bg-white z-20 w-[100px]">
@@ -181,7 +177,7 @@ export function TaskTable({ projectId }: { projectId: string }) {
                     {task.dependencies}
                   </TableCell>
                   <TableCell className="p-2 sm:p-4 text-xs sm:text-sm">
-                    {task.project}
+                    {task.weight}
                   </TableCell>
                   <TableCell className="p-2 sm:p-4 text-xs sm:text-sm sticky right-0 bg-white">
                     <Button
@@ -227,7 +223,10 @@ export function TaskTable({ projectId }: { projectId: string }) {
                 onChange={(e) =>
                   setEditingTask(
                     editingTask
-                      ? { ...editingTask, name: e.target.value }
+                      ? {
+                          ...editingTask,
+                          name: e.target.value,
+                        }
                       : null,
                   )
                 }
@@ -244,7 +243,10 @@ export function TaskTable({ projectId }: { projectId: string }) {
                 onChange={(e) =>
                   setEditingTask(
                     editingTask
-                      ? { ...editingTask, description: e.target.value }
+                      ? {
+                          ...editingTask,
+                          description: e.target.value,
+                        }
                       : null,
                   )
                 }
@@ -284,7 +286,10 @@ export function TaskTable({ projectId }: { projectId: string }) {
                 onChange={(e) =>
                   setEditingTask(
                     editingTask
-                      ? { ...editingTask, startDate: e.target.value }
+                      ? {
+                          ...editingTask,
+                          startDate: e.target.value,
+                        }
                       : null,
                   )
                 }
@@ -302,7 +307,10 @@ export function TaskTable({ projectId }: { projectId: string }) {
                 onChange={(e) =>
                   setEditingTask(
                     editingTask
-                      ? { ...editingTask, endDate: e.target.value }
+                      ? {
+                          ...editingTask,
+                          endDate: e.target.value,
+                        }
                       : null,
                   )
                 }
@@ -320,7 +328,10 @@ export function TaskTable({ projectId }: { projectId: string }) {
                 onChange={(e) =>
                   setEditingTask(
                     editingTask
-                      ? { ...editingTask, progress: Number(e.target.value) }
+                      ? {
+                          ...editingTask,
+                          progress: Number(e.target.value),
+                        }
                       : null,
                   )
                 }
@@ -338,7 +349,10 @@ export function TaskTable({ projectId }: { projectId: string }) {
                 onChange={(e) =>
                   setEditingTask(
                     editingTask
-                      ? { ...editingTask, dependencies: Number(e.target.value) }
+                      ? {
+                          ...editingTask,
+                          dependencies: Number(e.target.value),
+                        }
                       : null,
                   )
                 }
@@ -346,16 +360,22 @@ export function TaskTable({ projectId }: { projectId: string }) {
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="project" className="text-right">
+              <Label htmlFor="peso" className="text-right">
                 Peso
               </Label>
               <Input
-                id="project"
+                type="number"
+                id="peso"
                 value={editingTask?.weight || 0}
+                max={5}
+                min={0}
                 onChange={(e) =>
                   setEditingTask(
                     editingTask
-                      ? { ...editingTask, weight: Number(e.target.value) }
+                      ? {
+                          ...editingTask,
+                          weight: Number(e.target.value),
+                        }
                       : null,
                   )
                 }

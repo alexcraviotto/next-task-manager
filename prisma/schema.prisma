@@ -10,11 +10,13 @@ datasource db {
 
 // Modelo users
 model User {
-  id            Int                @id @default(autoincrement())
-  username      String             @unique
-  email         String             @unique
-  password      String
-  isAdmin       Boolean            @default(false)
+  id         Int     @id @default(autoincrement())
+  username   String  @unique
+  email      String  @unique
+  password   String
+  isAdmin    Boolean @default(false)
+  isVerified Boolean @default(false)
+
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
   organizations UserOrganization[] // Relación hacia UserOrganization
