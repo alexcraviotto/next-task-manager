@@ -1,25 +1,27 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
   previewFeatures = ["driverAdapters"]
-
 }
 
 datasource db {
   provider = "sqlite"
   url      = "file:./dev.db"
 }
+
 // Modelo users
 model User {
-  id        Int       @id @default(autoincrement())
-  username  String    @unique
-  email     String    @unique
-  password  String
-  isAdmin   Boolean   @default(false)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id         Int     @id @default(autoincrement())
+  username   String  @unique
+  email      String  @unique
+  password   String
+  isAdmin    Boolean @default(false)
+  isVerified Boolean @default(false)
+
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
   organizations UserOrganization[] // Relación hacia UserOrganization
-  tasks       Task[]               @relation("UserTasks")
-  taskRatings TaskRating[]
+  tasks         Task[]             @relation("UserTasks")
+  taskRatings   TaskRating[]
 }
 
 // Modelo organizations
@@ -29,15 +31,16 @@ model Organization {
   createdById Int
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
-  users       UserOrganization[] // Relación hacia UserOrganization
-  tasks       Task[]
-  versions    Version[]
+  users       UserOrganization[]
+  tasks       Task[]             @relation("OrganizationTasks")
+  versions    Version[]          @relation("OrganizationVersions")
 }
 
 // Tabla de relación user_organizations
 model UserOrganization {
   userId         Int
   organizationId Int
+  weight         Int // Peso del cliente dado por el admin
   User           User         @relation(fields: [userId], references: [id])
   Organization   Organization @relation(fields: [organizationId], references: [id])
 
@@ -46,17 +49,25 @@ model UserOrganization {
 
 // Modelo tasks
 model Task {
-  id              Int           @id @default(autoincrement())
-  title           String
-  description     String?
-  organizationId  Int
-  createdById     Int
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  organization    Organization  @relation(fields: [organizationId], references: [id])
-  createdBy       User          @relation("UserTasks", fields: [createdById], references: [id])
-  taskRatings     TaskRating[]
-  versionTasks    VersionTask[]
+  id             Int      @id @default(autoincrement())
+  name           String
+  description    String?
+  type           String
+  startDate      DateTime
+  endDate        DateTime
+  progress       Float
+  organizationId Int
+  createdById    Int
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization  @relation("OrganizationTasks", fields: [organizationId], references: [id])
+  createdBy    User          @relation("UserTasks", fields: [createdById], references: [id])
+  taskRatings  TaskRating[]
+  versionTasks VersionTask[]
+
+  dependencies Task[] @relation("TaskDependencies")
+  dependentOn  Task[] @relation("TaskDependencies")
 }
 
 // Tabla de relación version_tasks
@@ -71,14 +82,14 @@ model VersionTask {
 
 // Modelo task_ratings con restricciones
 model TaskRating {
-  id                Int    @id @default(autoincrement())
-  taskId            Int
-  userId            Int
-  clientSatisfaction Int?   @default(0) @map("client_satisfaction")
-  clientWeight      Int?   @default(0) @map("client_weight")
-  effort            Int?   @default(0)
-  task              Task   @relation(fields: [taskId], references: [id])
-  user              User   @relation(fields: [userId], references: [id])
+  id                 Int  @id @default(autoincrement())
+  taskId             Int
+  userId             Int
+  clientSatisfaction Int? @default(0) @map("client_satisfaction")
+  clientWeight       Int? @default(0) @map("client_weight")
+  effort             Int? @default(0)
+  task               Task @relation(fields: [taskId], references: [id])
+  user               User @relation(fields: [userId], references: [id])
 
   @@unique([taskId, userId])
 }
@@ -90,6 +101,6 @@ model Version {
   versionNumber  Int
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
-  organization   Organization  @relation(fields: [organizationId], references: [id])
+  organization   Organization  @relation("OrganizationVersions", fields: [organizationId], references: [id])
   versionTasks   VersionTask[]
 }
