@@ -7,7 +7,6 @@ export default function RegisterForm() {
   const [surname, setSurname] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const response = await fetch("/api/auth/register", {
@@ -16,6 +15,7 @@ export default function RegisterForm() {
       body: JSON.stringify({ username, surname, email, password }),
     });
     const data = await response.json();
+
     console.log(data);
   };
 
