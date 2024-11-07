@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
-export default function OrganizationFormPopup() {
+export default function CreateOrganization() {
   const [isOpen, setIsOpen] = useState(false);
   const [orgName, setOrgName] = useState("");
   const [description, setDescription] = useState("");
