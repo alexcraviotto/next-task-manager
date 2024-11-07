@@ -34,6 +34,7 @@ interface Member {
   isAdmin: boolean;
   createdAt: string;
   updatedAt: string;
+  weight: number;
 }
 
 export function MembersTable({ organizationId }: { organizationId: string }) {
@@ -46,6 +47,7 @@ export function MembersTable({ organizationId }: { organizationId: string }) {
       isAdmin: true,
       createdAt: "2024-01-01",
       updatedAt: "2024-01-01",
+      weight: 0,
     },
     {
       id: 2,
@@ -54,6 +56,7 @@ export function MembersTable({ organizationId }: { organizationId: string }) {
       isAdmin: false,
       createdAt: "2024-01-02",
       updatedAt: "2024-01-02",
+      weight: 0,
     },
   ]);
 
@@ -85,6 +88,7 @@ export function MembersTable({ organizationId }: { organizationId: string }) {
       isAdmin: false,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
+      weight: 0,
     };
     setEditingMember(newMember);
     setIsDialogOpen(true);
@@ -128,6 +132,9 @@ export function MembersTable({ organizationId }: { organizationId: string }) {
                 <TableHead className="p-2 sm:p-4 text-xs sm:text-sm w-[150px]">
                   Última Actualización
                 </TableHead>
+                <TableHead className="p-2 sm:p-4 text-xs sm:text-sm w-[150px]">
+                  Peso
+                </TableHead>
                 <TableHead className="p-2 sm:p-4 text-xs sm:text-sm sticky right-0 bg-white z-20 w-[120px]">
                   Acciones
                 </TableHead>
@@ -150,6 +157,9 @@ export function MembersTable({ organizationId }: { organizationId: string }) {
                   </TableCell>
                   <TableCell className="p-2 sm:p-4 text-xs sm:text-sm">
                     {new Date(member.updatedAt).toLocaleDateString()}
+                  </TableCell>
+                  <TableCell className="p-2 sm:p-4 text-xs sm:text-sm">
+                    {member.weight}
                   </TableCell>
                   <TableCell className="p-2 sm:p-4 text-xs sm:text-sm sticky right-0 bg-white flex gap-2">
                     <Button
@@ -201,7 +211,10 @@ export function MembersTable({ organizationId }: { organizationId: string }) {
                 onChange={(e) =>
                   setEditingMember(
                     editingMember
-                      ? { ...editingMember, username: e.target.value }
+                      ? {
+                          ...editingMember,
+                          username: e.target.value,
+                        }
                       : null,
                   )
                 }
@@ -219,7 +232,10 @@ export function MembersTable({ organizationId }: { organizationId: string }) {
                 onChange={(e) =>
                   setEditingMember(
                     editingMember
-                      ? { ...editingMember, email: e.target.value }
+                      ? {
+                          ...editingMember,
+                          email: e.target.value,
+                        }
                       : null,
                   )
                 }
@@ -235,7 +251,10 @@ export function MembersTable({ organizationId }: { organizationId: string }) {
                 onValueChange={(value) =>
                   setEditingMember(
                     editingMember
-                      ? { ...editingMember, isAdmin: value === "admin" }
+                      ? {
+                          ...editingMember,
+                          isAdmin: value === "admin",
+                        }
                       : null,
                   )
                 }
@@ -248,6 +267,27 @@ export function MembersTable({ organizationId }: { organizationId: string }) {
                   <SelectItem value="admin">Administrador</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="weight" className="text-right">
+                Peso
+              </Label>
+              <Input
+                id="weight"
+                type="number"
+                value={editingMember?.weight || 0}
+                onChange={(e) =>
+                  setEditingMember(
+                    editingMember
+                      ? {
+                          ...editingMember,
+                          weight: parseInt(e.target.value),
+                        }
+                      : null,
+                  )
+                }
+                className="col-span-3"
+              />
             </div>
           </div>
           <Button onClick={handleSaveMember} className="w-full">

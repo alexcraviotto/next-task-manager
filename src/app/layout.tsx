@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Be_Vietnam_Pro } from "next/font/google";
 import Providers from "./Providers";
+import { Toaster } from "@/components/ui/toaster";
 
 const beVietnamPro = Be_Vietnam_Pro({
   subsets: ["latin"],
@@ -22,6 +23,7 @@ export default function RootLayout({
     <html lang="es">
       <body className={`${beVietnamPro.className} antialiased`}>
         <Providers>{children}</Providers>
+        <Toaster />
       </body>
     </html>
   );
