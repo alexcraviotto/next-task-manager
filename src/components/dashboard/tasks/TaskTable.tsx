@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -41,33 +41,27 @@ interface Task {
 
 export function TaskTable({ projectId }: { projectId: string }) {
   console.log("🚀 ~ TaskTable ~ projectId:", projectId);
-  const [tasks, setTasks] = useState<Task[]>([
-    {
-      id: 1,
-      name: "GestionarTarea1",
-      description: "",
-      type: "task",
-      startDate: "19/10/2024",
-      endDate: "20/10/2024",
-      progress: 0,
-      dependencies: 0,
-      weight: 0,
-    },
-    {
-      id: 2,
-      name: "NuevaTareaNueva",
-      description: "",
-      type: "task",
-      startDate: "19/10/2024",
-      endDate: "20/10/2024",
-      progress: 0,
-      dependencies: 0,
-      weight: 0,
-    },
-  ]);
-
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  // Hook para obtener las 3 tareas mas relevantes al cargar el componente
+  useEffect(() => {
+    const fetchRelevantTasks = async () => {
+      try {
+        const response = await fetch("/api/tasks/top");
+        if (response.ok) {
+          const data = await response.json();
+          setTasks(data);
+        } else {
+          console.error("Error al obtener las tareas más relevantes");
+        }
+      } catch (error) {
+        console.error("Error en la solicitud:", error);
+      }
+    };
+    fetchRelevantTasks();
+  }, [projectId]);
 
   const handleEditTask = (task: Task) => {
     setEditingTask(task);
