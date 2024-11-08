@@ -1,5 +1,4 @@
 "use client";
-
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -46,14 +45,41 @@ export default function Settings({
   const onSubmit = async (data: FormValues) => {
     try {
       setIsLoading(true);
-      console.log(JSON.stringify(data));
-      // TODO: Implement your API call here
-      await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulated API call
-      toast({ description: "Profile updated successfully" });
-    } catch (error) {
-      console.error("🚀 ~ onSubmit ~ error:", error);
+
+      // Llamada al endpoint
+      const response = await fetch("/api/profile", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        // Si hay errores de validación del servidor
+        if (response.status === 400 && result.errors) {
+          // Mostrar el primer error de validación
+          toast({
+            description: result.errors[0],
+            variant: "destructive",
+          });
+          return;
+        }
+
+        throw new Error(result.error || "Failed to update profile");
+      }
+
+      // Mostrar mensaje de éxito
       toast({
-        description: "Failed to update profile",
+        description: result.message || "Profile updated successfully",
+      });
+    } catch (error) {
+      console.error("Profile update error:", error);
+      toast({
+        description:
+          error instanceof Error ? error.message : "Failed to update profile",
         variant: "destructive",
       });
     } finally {

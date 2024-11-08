@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/database";
-import { Prisma } from "@prisma/client";
+import { type Prisma } from ".prisma/client";
 import { hash } from "bcrypt";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
@@ -20,6 +20,9 @@ interface UpdateProfileResponse {
 }
 
 // Validaciones
+
+// Quizas cambiar: En el front se valida el formato del username, email y password
+// Aca en todo caso habria que validar la unicidad pues el resto es redundante
 const validateProfileData = async (
   data: UpdateProfileRequest,
   userId: number,
@@ -35,8 +38,8 @@ const validateProfileData = async (
     errors.push("Invalid email format");
   }
 
-  if (data.password && data.password.length < 6) {
-    errors.push("Password must be at least 6 characters long");
+  if (data.password && data.password.length < 8) {
+    errors.push("Password must be at least 8 characters long");
   }
 
   // Validar unicidad de username y email
