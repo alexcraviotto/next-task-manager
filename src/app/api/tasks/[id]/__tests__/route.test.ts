@@ -1,0 +1,241 @@
+/**
+ * @jest-environment node
+ */
+import { prisma } from "@/lib/database";
+import { PUT, DELETE, GET } from "../route";
+import { getServerSession } from "next-auth";
+import { NextRequest } from "next/server";
+
+jest.mock("next-auth", () => ({
+  getServerSession: jest.fn(),
+}));
+
+jest.mock("@/lib/database", () => ({
+  prisma: {
+    task: {
+      findUnique: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
+  },
+}));
+
+describe("Task Routes", () => {
+  describe("PUT /api/tasks/:id", () => {
+    it("should return 200 and update the task if valid data is provided", async () => {
+      const mockSession = { user: { id: "1" } };
+      (getServerSession as jest.Mock).mockResolvedValueOnce(mockSession);
+
+      const mockTask = {
+        id: 1,
+        name: "Old Task",
+        description: "Old Description",
+        type: "Task",
+        startDate: new Date("2024-11-01"),
+        endDate: new Date("2024-11-02"),
+        createdById: 1,
+      };
+
+      (prisma.task.findUnique as jest.Mock).mockResolvedValueOnce(mockTask);
+      (prisma.task.update as jest.Mock).mockResolvedValueOnce({
+        ...mockTask,
+        name: "Updated Task",
+        description: "Updated Description",
+        startDate: new Date("2024-11-05"),
+        endDate: new Date("2024-11-06"),
+      });
+
+      const req = new Request("http://localhost:3001/api/tasks/1", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Updated Task",
+          description: "Updated Description",
+          type: "Task",
+          startDate: "2024-11-05",
+          endDate: "2024-11-06",
+        }),
+      }) as unknown as NextRequest;
+
+      const response = await PUT(req, { params: { id: "1" } });
+      const data = await response.json();
+      console.log(data);
+      expect(response.status).toBe(200);
+      expect(data.task.name).toBe("Updated Task");
+      expect(data.task.description).toBe("Updated Description");
+    });
+
+    it("should return 401 if user is not authenticated", async () => {
+      (getServerSession as jest.Mock).mockResolvedValueOnce(null);
+
+      const req = new Request("http://localhost:3001/api/tasks/1", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Updated Task",
+          description: "Updated Description",
+          type: "Task",
+          startDate: "2024-11-05",
+          endDate: "2024-11-06",
+        }),
+      }) as unknown as NextRequest;
+
+      const response = await PUT(req, { params: { id: "1" } });
+      const data = await response.json();
+
+      expect(response.status).toBe(401);
+      expect(data.message).toBe("Unauthorized");
+    });
+
+    it("should return 400 if invalid data is provided", async () => {
+      const mockSession = { user: { id: "1" } };
+      (getServerSession as jest.Mock).mockResolvedValueOnce(mockSession);
+
+      const req = new Request("http://localhost:3001/api/tasks/1", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "",
+          description: "Updated Description",
+          type: "Task",
+          startDate: "2024-11-05",
+          endDate: "2024-11-06",
+        }),
+      }) as unknown as NextRequest;
+
+      const response = await PUT(req, { params: { id: "1" } });
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBe("Invalid data");
+    });
+  });
+
+  describe("DELETE /api/tasks/:id", () => {
+    it("should return 200 and delete the task if valid task ID is provided", async () => {
+      const mockSession = { user: { id: "1" } };
+      (getServerSession as jest.Mock).mockResolvedValueOnce(mockSession);
+
+      const mockTask = {
+        id: 1,
+        name: "Task to Delete",
+        description: "Task Description",
+        type: "Task",
+        startDate: new Date("2024-11-01"),
+        endDate: new Date("2024-11-02"),
+        createdById: 1,
+      };
+
+      (prisma.task.findUnique as jest.Mock).mockResolvedValueOnce(mockTask);
+      (prisma.task.delete as jest.Mock).mockResolvedValueOnce(mockTask);
+
+      const req = new Request("http://localhost:3001/api/tasks/1", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+      }) as unknown as NextRequest;
+
+      const response = await DELETE(req, { params: { id: "1" } });
+      const data = await response.json();
+      console.log(data);
+      expect(response.status).toBe(200);
+      expect(data.message).toBe("Task deleted successfully");
+    });
+
+    it("should return 401 if user is not authenticated", async () => {
+      (getServerSession as jest.Mock).mockResolvedValueOnce(null);
+
+      const req = new Request("http://localhost:3001/api/tasks/1", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+      }) as unknown as NextRequest;
+
+      const response = await DELETE(req, { params: { id: "1" } });
+      const data = await response.json();
+
+      expect(response.status).toBe(401);
+      expect(data.message).toBe("Unauthorized");
+    });
+
+    it("should return 404 if task is not found", async () => {
+      const mockSession = { user: { id: "1" } };
+      (getServerSession as jest.Mock).mockResolvedValueOnce(mockSession);
+
+      (prisma.task.findUnique as jest.Mock).mockResolvedValueOnce(null);
+
+      const req = new Request("http://localhost:3001/api/tasks/1", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+      }) as unknown as NextRequest;
+
+      const response = await DELETE(req, { params: { id: "1" } });
+      const data = await response.json();
+
+      expect(response.status).toBe(404);
+      expect(data.error).toBe("Task not found");
+    });
+  });
+
+  describe("GET /api/tasks/:id", () => {
+    it("should return 200 and retrieve the task if it exists", async () => {
+      const mockSession = { user: { id: "1" } };
+      (getServerSession as jest.Mock).mockResolvedValueOnce(mockSession);
+
+      const mockTask = {
+        id: 1,
+        name: "Existing Task",
+        description: "Existing Task Description",
+        type: "Task",
+        startDate: new Date("2024-11-01"),
+        endDate: new Date("2024-11-02"),
+        createdById: 1,
+      };
+
+      (prisma.task.findUnique as jest.Mock).mockResolvedValueOnce(mockTask);
+
+      const req = new Request("http://localhost:3001/api/tasks/1", {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      }) as unknown as NextRequest;
+
+      const response = await GET(req, { params: { id: "1" } });
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.task.name).toBe("Existing Task");
+      expect(data.task.description).toBe("Existing Task Description");
+    });
+
+    it("should return 401 if user is not authenticated", async () => {
+      (getServerSession as jest.Mock).mockResolvedValueOnce(null);
+
+      const req = new Request("http://localhost:3001/api/tasks/1", {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      }) as unknown as NextRequest;
+
+      const response = await GET(req, { params: { id: "1" } });
+      const data = await response.json();
+
+      expect(response.status).toBe(401);
+      expect(data.message).toBe("Unauthorized");
+    });
+
+    it("should return 404 if task is not found", async () => {
+      const mockSession = { user: { id: "1" } };
+      (getServerSession as jest.Mock).mockResolvedValueOnce(mockSession);
+
+      (prisma.task.findUnique as jest.Mock).mockResolvedValueOnce(null);
+
+      const req = new Request("http://localhost:3001/api/tasks/1", {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      }) as unknown as NextRequest;
+
+      const response = await GET(req, { params: { id: "1" } });
+      const data = await response.json();
+
+      expect(response.status).toBe(404);
+      expect(data.error).toBe("Task not found");
+    });
+  });
+});
