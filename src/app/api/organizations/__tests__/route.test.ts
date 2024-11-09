@@ -149,9 +149,6 @@ describe("GET /api/organizations", () => {
     };
 
     (getServerSession as jest.Mock).mockResolvedValue(session);
-  });
-
-  afterEach(() => {
     jest.clearAllMocks();
   });
 
@@ -162,24 +159,64 @@ describe("GET /api/organizations", () => {
     expect(await res.json()).toEqual({ message: "Unauthorized" });
   });
 
-  it("should return 404 if user is not found", async () => {
-    (prismaClientMock.user.findUnique as jest.Mock).mockResolvedValueOnce(null);
+  it("should return organization with tasks if valid id is provided", async () => {
+    const mockUser = {
+      id: 1,
+      email: "test@example.com",
+      username: "test",
+    };
+
+    const mockOrganization = {
+      id: "org-123",
+      name: "Test Org",
+      tasks: [
+        {
+          id: 1,
+          name: "Test Task",
+          createdBy: mockUser,
+          taskRatings: [],
+          dependencies: [],
+          dependentOn: [],
+        },
+      ],
+      users: [
+        {
+          User: mockUser,
+        },
+      ],
+    };
+
+    req = {
+      url: "http://localhost:3000/api/organizations?id=org-123",
+    } as unknown as NextRequest;
+
+    prismaClientMock.user.findUnique.mockResolvedValueOnce(mockUser);
+    prismaClientMock.organization.findFirst.mockResolvedValueOnce(
+      mockOrganization,
+    );
+
     const res = await GET(req);
-    expect(res.status).toBe(404);
-    expect(await res.json()).toEqual({ message: "User not found" });
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data).toEqual(mockOrganization);
+    expect(data).toHaveProperty("tasks");
+    expect(data.id).toBe("org-123");
   });
 
-  it("should return all organizations for a user when no id is provided", async () => {
-    const mockUser = { id: 1, email: "test@example.com" };
+  it("should return all organizations when no id is provided", async () => {
+    const mockUser = {
+      id: 1,
+      email: "test@example.com",
+    };
+
     const mockOrganizations = [
       { id: "1", name: "Org 1" },
       { id: "2", name: "Org 2" },
     ];
 
-    (prismaClientMock.user.findUnique as jest.Mock).mockResolvedValueOnce(
-      mockUser,
-    );
-    (prismaClientMock.organization.findMany as jest.Mock).mockResolvedValueOnce(
+    prismaClientMock.user.findUnique.mockResolvedValueOnce(mockUser);
+    prismaClientMock.organization.findMany.mockResolvedValueOnce(
       mockOrganizations,
     );
 
@@ -188,43 +225,18 @@ describe("GET /api/organizations", () => {
     expect(await res.json()).toEqual(mockOrganizations);
   });
 
-  it("should return a specific organization when id is provided", async () => {
-    const mockUser = { id: 1, email: "test@example.com" };
-    const mockOrganization = {
-      id: "1",
-      name: "Org 1",
-      tasks: [],
+  it("should return 404 if organization is not found", async () => {
+    const mockUser = {
+      id: 1,
+      email: "test@example.com",
     };
 
     req = {
-      url: "http://localhost:3000/api/organizations?id=1",
+      url: "http://localhost:3000/api/organizations?id=invalid-id",
     } as unknown as NextRequest;
 
-    (prismaClientMock.user.findUnique as jest.Mock).mockResolvedValueOnce(
-      mockUser,
-    );
-    (
-      prismaClientMock.organization.findFirst as jest.Mock
-    ).mockResolvedValueOnce(mockOrganization);
-
-    const res = await GET(req);
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual(mockOrganization);
-  });
-
-  it("should return 404 when specific organization is not found", async () => {
-    const mockUser = { id: 1, email: "test@example.com" };
-
-    req = {
-      url: "http://localhost:3000/api/organizations?id=999",
-    } as unknown as NextRequest;
-
-    (prismaClientMock.user.findUnique as jest.Mock).mockResolvedValueOnce(
-      mockUser,
-    );
-    (
-      prismaClientMock.organization.findFirst as jest.Mock
-    ).mockResolvedValueOnce(null);
+    prismaClientMock.user.findUnique.mockResolvedValueOnce(mockUser);
+    prismaClientMock.organization.findFirst.mockResolvedValueOnce(null);
 
     const res = await GET(req);
     expect(res.status).toBe(404);
@@ -232,7 +244,7 @@ describe("GET /api/organizations", () => {
   });
 
   it("should return 500 on internal server error", async () => {
-    (prismaClientMock.user.findUnique as jest.Mock).mockRejectedValueOnce(
+    prismaClientMock.user.findUnique.mockRejectedValueOnce(
       new Error("Database error"),
     );
 

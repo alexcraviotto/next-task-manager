@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Pencil, Plus, Save } from "lucide-react";
+import { Pencil, Plus, Save, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -26,6 +26,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useTasks } from "@/hooks/useTasks";
+import { Loader2 } from "lucide-react";
 
 interface Task {
   id: number;
@@ -40,52 +42,43 @@ interface Task {
   organizationId: string;
 }
 
+const formatDateForInput = (date: string): string => {
+  if (!date) return "";
+
+  try {
+    const dateObj = new Date(date);
+    return dateObj.toISOString().split("T")[0];
+  } catch (error) {
+    console.error("Error formatting date:", error);
+    return "";
+  }
+};
+
+const parseInputDate = (dateString: string): string => {
+  if (!dateString) return new Date().toISOString();
+  return new Date(dateString).toISOString();
+};
+
 export function TaskTable({ projectId }: { projectId: string }) {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  console.log(projectId);
-  const [tasks, setTasks] = useState<Task[]>([
-    {
-      id: 1,
-      name: "GestionarTarea1",
-      description: "",
-      type: "task",
-      startDate: "19/10/2024",
-      endDate: "20/10/2024",
-      progress: 0,
-      dependencies: 0,
-      weight: 0,
-      organizationId: projectId,
-    },
-    {
-      id: 2,
-      name: "NuevaTareaNueva",
-      description: "",
-      type: "task",
-      startDate: "19/10/2024",
-      endDate: "20/10/2024",
-      progress: 0,
-      dependencies: 0,
-      weight: 0,
-      organizationId: projectId,
-    },
-  ]);
+  const { tasks, isLoading, error, addTask, updateTask, deleteTask } =
+    useTasks(projectId);
 
   const handleAddTask = () => {
-    const newTask: Task = {
-      id: tasks.length + 1,
+    const today = new Date().toISOString();
+    const newTask: Omit<Task, "id"> = {
       name: "",
       description: "",
       type: "task",
-      startDate: "",
-      endDate: "",
+      startDate: today,
+      endDate: today,
       progress: 0,
       dependencies: 0,
       weight: 0,
       organizationId: projectId,
     };
-    console.log(projectId);
-    setEditingTask(newTask);
+    setEditingTask(newTask as Task);
     setIsDialogOpen(true);
   };
 
@@ -95,62 +88,42 @@ export function TaskTable({ projectId }: { projectId: string }) {
   };
 
   const handleSaveTask = async () => {
-    if (editingTask) {
-      try {
-        const response =
-          editingTask.id > tasks.length
-            ? await fetch("/api/tasks", {
-                method: "POST",
-                body: JSON.stringify(editingTask),
-                headers: {
-                  "Content-Type": "application/json",
-                },
-              })
-            : await fetch(`/api/tasks/${editingTask.id}`, {
-                method: "PUT",
-                body: JSON.stringify(editingTask),
-                headers: {
-                  "Content-Type": "application/json",
-                },
-              });
+    if (!editingTask) return;
 
-        const data = await response.json();
-        if (response.ok) {
-          if (editingTask.id > tasks.length) {
-            setTasks([...tasks, data.task]);
-          } else {
-            setTasks(
-              tasks.map((task) =>
-                task.id === editingTask.id ? data.task : task,
-              ),
-            );
-          }
-          setEditingTask(null);
-          setIsDialogOpen(false);
-        } else {
-          console.error("Error saving task:", data.message);
-        }
-      } catch (error) {
-        console.error("Error saving task:", error);
+    try {
+      if ("id" in editingTask) {
+        await updateTask(editingTask.id, editingTask);
+      } else {
+        await addTask(editingTask);
       }
+      setIsDialogOpen(false);
+      setEditingTask(null);
+    } catch (error) {
+      console.error("Error saving task:", error);
     }
   };
 
   const handleDeleteTask = async (taskId: number) => {
     try {
-      const response = await fetch(`/api/tasks/${taskId}`, {
-        method: "DELETE",
-      });
-      const data = await response.json();
-      if (response.ok) {
-        setTasks(tasks.filter((task) => task.id !== taskId));
-      } else {
-        console.error("Error deleting task:", data.message);
-      }
+      await deleteTask(taskId);
     } catch (error) {
       console.error("Error deleting task:", error);
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="w-full h-48 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="w-full p-4 text-center text-red-500">Error: {error}</div>
+    );
+  }
 
   return (
     <div className="w-full space-y-4 mt-10 relative">
@@ -180,7 +153,13 @@ export function TaskTable({ projectId }: { projectId: string }) {
                 Dependientes
               </TableHead>
               <TableHead className="p-2 sm:p-4 text-xs sm:text-sm w-[120px]">
+                Satisfacción
+              </TableHead>
+              <TableHead className="p-2 sm:p-4 text-xs sm:text-sm w-[120px]">
                 Peso
+              </TableHead>
+              <TableHead className="p-2 sm:p-4 text-xs sm:text-sm w-[120px]">
+                Esfuerzo
               </TableHead>
               <TableHead className="p-2 sm:p-4 text-xs sm:text-sm sticky right-0 bg-white z-20 w-[100px]">
                 Acciones
@@ -200,10 +179,10 @@ export function TaskTable({ projectId }: { projectId: string }) {
                   {task.type}
                 </TableCell>
                 <TableCell className="p-2 sm:p-4 text-xs sm:text-sm">
-                  {task.startDate}
+                  {new Date(task.startDate).toLocaleDateString("es-ES")}
                 </TableCell>
                 <TableCell className="p-2 sm:p-4 text-xs sm:text-sm">
-                  {task.endDate}
+                  {new Date(task.endDate).toLocaleDateString("es-ES")}
                 </TableCell>
                 <TableCell className="p-2 sm:p-4 text-xs sm:text-sm text-center">
                   {task.progress}%
@@ -212,7 +191,13 @@ export function TaskTable({ projectId }: { projectId: string }) {
                   {task.dependencies}
                 </TableCell>
                 <TableCell className="p-2 sm:p-4 text-xs sm:text-sm">
-                  {task.weight}
+                  0
+                </TableCell>
+                <TableCell className="p-2 sm:p-4 text-xs sm:text-sm">
+                  {task.weight ?? 0}
+                </TableCell>
+                <TableCell className="p-2 sm:p-4 text-xs sm:text-sm">
+                  0
                 </TableCell>
                 <TableCell className="p-2 sm:p-4 text-xs sm:text-sm sticky right-0 bg-white">
                   <Button
@@ -228,7 +213,7 @@ export function TaskTable({ projectId }: { projectId: string }) {
                     size="icon"
                     onClick={() => handleDeleteTask(task.id)}
                   >
-                    <Save className="h-4 w-4" />
+                    <Trash2 className="h-4 w-4" />
                     <span className="sr-only">Eliminar tarea</span>
                   </Button>
                 </TableCell>
@@ -321,13 +306,15 @@ export function TaskTable({ projectId }: { projectId: string }) {
               <Input
                 id="startDate"
                 type="date"
-                value={editingTask?.startDate || ""}
+                value={
+                  editingTask ? formatDateForInput(editingTask.startDate) : ""
+                }
                 onChange={(e) =>
                   setEditingTask(
                     editingTask
                       ? {
                           ...editingTask,
-                          startDate: e.target.value,
+                          startDate: parseInputDate(e.target.value),
                         }
                       : null,
                   )
@@ -342,13 +329,15 @@ export function TaskTable({ projectId }: { projectId: string }) {
               <Input
                 id="endDate"
                 type="date"
-                value={editingTask?.endDate || ""}
+                value={
+                  editingTask ? formatDateForInput(editingTask.endDate) : ""
+                }
                 onChange={(e) =>
                   setEditingTask(
                     editingTask
                       ? {
                           ...editingTask,
-                          endDate: e.target.value,
+                          endDate: parseInputDate(e.target.value),
                         }
                       : null,
                   )
