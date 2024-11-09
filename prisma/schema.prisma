@@ -23,6 +23,7 @@ model User {
   tasks         Task[]             @relation("UserTasks")
   taskRatings   TaskRating[]
   otps          OTP[]             // New relation to OTP model
+  createdOrgs   Organization[]     @relation("CreatedByUser") // Nueva relación
 }
 
 // Modelo organizations
@@ -35,6 +36,7 @@ model Organization {
   users       UserOrganization[]
   tasks       Task[]             @relation("OrganizationTasks")
   versions    Version[]          @relation("OrganizationVersions")
+  createdBy   User              @relation("CreatedByUser", fields: [createdById], references: [id]) // Nueva relación
 }
 
 // Tabla de relación user_organizations
