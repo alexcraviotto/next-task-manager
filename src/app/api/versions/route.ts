@@ -15,9 +15,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
-  const { organizationId, versionNumber } = await req.json();
-
-  if (!organizationId || !versionNumber) {
+  const { organizationId, versionName } = await req.json();
+  if (!organizationId || !versionName) {
+    console.log("Invalid parameters");
+    console.log(organizationId, versionName);
     return NextResponse.json(
       { message: "Invalid parameters" },
       { status: 400 },
@@ -41,7 +42,7 @@ export async function POST(req: NextRequest) {
     const newVersion = await prisma.version.create({
       data: {
         organizationId,
-        versionNumber,
+        versionName,
       },
     });
 

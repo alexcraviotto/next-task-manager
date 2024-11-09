@@ -26,6 +26,8 @@ export async function POST(req: NextRequest) {
     !endDate ||
     !organizationId
   ) {
+    console.log(name, description, type, startDate, endDate, organizationId);
+    console.log("Invalid parameters");
     return NextResponse.json(
       { message: "Invalid parameters" },
       { status: 400 },
@@ -33,15 +35,8 @@ export async function POST(req: NextRequest) {
   }
   const userId = Number(session.user.id);
 
-  const userInOrg = await prisma.userOrganization.findFirst({
-    where: { userId, organizationId },
-  });
-
-  if (!userInOrg) {
-    return NextResponse.json(
-      { message: "Forbidden: User does not belong to this organization" },
-      { status: 403 },
-    );
+  if (session.user.isAdmin === false) {
+    return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
 
   try {
