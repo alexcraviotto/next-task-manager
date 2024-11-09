@@ -22,11 +22,12 @@ model User {
   organizations UserOrganization[] // Relación hacia UserOrganization
   tasks         Task[]             @relation("UserTasks")
   taskRatings   TaskRating[]
+  otps          OTP[]             // New relation to OTP model
 }
 
 // Modelo organizations
 model Organization {
-  id          Int                @id @default(autoincrement())
+  id          String             @id @default(uuid())
   name        String             @unique
   createdById Int
   createdAt   DateTime           @default(now())
@@ -39,7 +40,7 @@ model Organization {
 // Tabla de relación user_organizations
 model UserOrganization {
   userId         Int
-  organizationId Int
+  organizationId String // Cambiado a String
   weight         Int // Peso del cliente dado por el admin
   User           User         @relation(fields: [userId], references: [id])
   Organization   Organization @relation(fields: [organizationId], references: [id])
@@ -56,7 +57,7 @@ model Task {
   startDate      DateTime
   endDate        DateTime
   progress       Float
-  organizationId Int
+  organizationId String // Cambiado a String
   createdById    Int
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -97,10 +98,24 @@ model TaskRating {
 // Modelo versions
 model Version {
   id             Int           @id @default(autoincrement())
-  organizationId Int
+  organizationId String
   versionNumber  Int
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
   organization   Organization  @relation("OrganizationVersions", fields: [organizationId], references: [id])
   versionTasks   VersionTask[]
+}
+
+model OTP {
+  id        Int      @id @default(autoincrement())
+  code      String
+  email     String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  isUsed    Boolean  @default(false)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([email, isUsed, expiresAt]) // Índice compuesto para búsquedas eficientes
+  @@index([code, isUsed]) // Para validaciones rápidas de código
 }
