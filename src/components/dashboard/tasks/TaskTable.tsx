@@ -12,13 +12,6 @@ import {
 } from "@/components/ui/table";
 import { Pencil, Plus, Save } from "lucide-react";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -26,6 +19,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface Task {
   id: number;
@@ -37,10 +37,13 @@ interface Task {
   progress: number;
   dependencies: number;
   weight: number;
+  organizationId: string;
 }
 
 export function TaskTable({ projectId }: { projectId: string }) {
-  console.log("🚀 ~ TaskTable ~ projectId:", projectId);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  console.log(projectId);
   const [tasks, setTasks] = useState<Task[]>([
     {
       id: 1,
@@ -52,6 +55,7 @@ export function TaskTable({ projectId }: { projectId: string }) {
       progress: 0,
       dependencies: 0,
       weight: 0,
+      organizationId: projectId,
     },
     {
       id: 2,
@@ -63,26 +67,9 @@ export function TaskTable({ projectId }: { projectId: string }) {
       progress: 0,
       dependencies: 0,
       weight: 0,
+      organizationId: projectId,
     },
   ]);
-
-  const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-
-  const handleEditTask = (task: Task) => {
-    setEditingTask(task);
-    setIsDialogOpen(true);
-  };
-
-  const handleUpdateTask = () => {
-    if (editingTask) {
-      setTasks(
-        tasks.map((task) => (task.id === editingTask.id ? editingTask : task)),
-      );
-      setEditingTask(null);
-      setIsDialogOpen(false);
-    }
-  };
 
   const handleAddTask = () => {
     const newTask: Task = {
@@ -95,110 +82,162 @@ export function TaskTable({ projectId }: { projectId: string }) {
       progress: 0,
       dependencies: 0,
       weight: 0,
+      organizationId: projectId,
     };
+    console.log(projectId);
     setEditingTask(newTask);
     setIsDialogOpen(true);
   };
 
-  const handleSaveTask = () => {
+  const handleEditTask = (task: Task) => {
+    setEditingTask(task);
+    setIsDialogOpen(true);
+  };
+
+  const handleSaveTask = async () => {
     if (editingTask) {
-      if (editingTask.id > tasks.length) {
-        setTasks([...tasks, editingTask]);
-      } else {
-        handleUpdateTask();
+      try {
+        const response =
+          editingTask.id > tasks.length
+            ? await fetch("/api/tasks", {
+                method: "POST",
+                body: JSON.stringify(editingTask),
+                headers: {
+                  "Content-Type": "application/json",
+                },
+              })
+            : await fetch(`/api/tasks/${editingTask.id}`, {
+                method: "PUT",
+                body: JSON.stringify(editingTask),
+                headers: {
+                  "Content-Type": "application/json",
+                },
+              });
+
+        const data = await response.json();
+        if (response.ok) {
+          if (editingTask.id > tasks.length) {
+            setTasks([...tasks, data.task]);
+          } else {
+            setTasks(
+              tasks.map((task) =>
+                task.id === editingTask.id ? data.task : task,
+              ),
+            );
+          }
+          setEditingTask(null);
+          setIsDialogOpen(false);
+        } else {
+          console.error("Error saving task:", data.message);
+        }
+      } catch (error) {
+        console.error("Error saving task:", error);
       }
-      setEditingTask(null);
-      setIsDialogOpen(false);
+    }
+  };
+
+  const handleDeleteTask = async (taskId: number) => {
+    try {
+      const response = await fetch(`/api/tasks/${taskId}`, {
+        method: "DELETE",
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setTasks(tasks.filter((task) => task.id !== taskId));
+      } else {
+        console.error("Error deleting task:", data.message);
+      }
+    } catch (error) {
+      console.error("Error deleting task:", error);
     }
   };
 
   return (
     <div className="w-full space-y-4 mt-10 relative">
-      {/* Container con scroll horizontal mejorado */}
       <div className="border rounded-lg overflow-x-auto overscroll-x-contain touch-pan-x scrollbar-thin scrollbar-thumb-gray-300">
-        {/* Grid container con ancho mínimo */}
-        <div className="min-w-[320px] lg:w-full relative">
-          <Table>
-            <TableHeader>
-              <TableRow className="divide-x divide-gray-200">
-                {/* Columna fija izquierda */}
-                <TableHead className="p-2 sm:p-4 text-xs sm:text-sm font-medium sticky left-0 bg-white z-20 w-[120px] sm:w-[150px]">
-                  Tareas
-                </TableHead>
-                <TableHead className="p-2 sm:p-4 text-xs sm:text-sm min-w-[150px]">
-                  Descripción
-                </TableHead>
-                <TableHead className="p-2 sm:p-4 text-xs sm:text-sm w-[100px]">
-                  Tipo
-                </TableHead>
-                <TableHead className="p-2 sm:p-4 text-xs sm:text-sm w-[100px]">
-                  Inicio
-                </TableHead>
-                <TableHead className="p-2 sm:p-4 text-xs sm:text-sm w-[100px]">
-                  Fin
-                </TableHead>
-                <TableHead className="p-2 sm:p-4 text-xs sm:text-sm text-center w-[90px]">
-                  Progreso
-                </TableHead>
-                <TableHead className="p-2 sm:p-4 text-xs sm:text-sm text-center w-[100px]">
-                  Dependientes
-                </TableHead>
-                <TableHead className="p-2 sm:p-4 text-xs sm:text-sm w-[120px]">
-                  Peso
-                </TableHead>
-                {/* Columna fija derecha */}
-                <TableHead className="p-2 sm:p-4 text-xs sm:text-sm sticky right-0 bg-white z-20 w-[100px]">
-                  Acciones
-                </TableHead>
+        <Table>
+          <TableHeader>
+            <TableRow className="divide-x divide-gray-200">
+              <TableHead className="p-2 sm:p-4 text-xs sm:text-sm font-medium sticky left-0 bg-white z-20 w-[120px] sm:w-[150px]">
+                Tareas
+              </TableHead>
+              <TableHead className="p-2 sm:p-4 text-xs sm:text-sm min-w-[150px]">
+                Descripción
+              </TableHead>
+              <TableHead className="p-2 sm:p-4 text-xs sm:text-sm w-[100px]">
+                Tipo
+              </TableHead>
+              <TableHead className="p-2 sm:p-4 text-xs sm:text-sm w-[100px]">
+                Inicio
+              </TableHead>
+              <TableHead className="p-2 sm:p-4 text-xs sm:text-sm w-[100px]">
+                Fin
+              </TableHead>
+              <TableHead className="p-2 sm:p-4 text-xs sm:text-sm text-center w-[90px]">
+                Progreso
+              </TableHead>
+              <TableHead className="p-2 sm:p-4 text-xs sm:text-sm text-center w-[100px]">
+                Dependientes
+              </TableHead>
+              <TableHead className="p-2 sm:p-4 text-xs sm:text-sm w-[120px]">
+                Peso
+              </TableHead>
+              <TableHead className="p-2 sm:p-4 text-xs sm:text-sm sticky right-0 bg-white z-20 w-[100px]">
+                Acciones
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {tasks.map((task) => (
+              <TableRow key={task.id} className="divide-x divide-gray-200">
+                <TableCell className="p-2 sm:p-4 text-xs sm:text-sm break-words sticky left-0 bg-white">
+                  {task.name}
+                </TableCell>
+                <TableCell className="p-2 sm:p-4 text-xs sm:text-sm break-words">
+                  {task.description}
+                </TableCell>
+                <TableCell className="p-2 sm:p-4 text-xs sm:text-sm">
+                  {task.type}
+                </TableCell>
+                <TableCell className="p-2 sm:p-4 text-xs sm:text-sm">
+                  {task.startDate}
+                </TableCell>
+                <TableCell className="p-2 sm:p-4 text-xs sm:text-sm">
+                  {task.endDate}
+                </TableCell>
+                <TableCell className="p-2 sm:p-4 text-xs sm:text-sm text-center">
+                  {task.progress}%
+                </TableCell>
+                <TableCell className="p-2 sm:p-4 text-xs sm:text-sm text-center">
+                  {task.dependencies}
+                </TableCell>
+                <TableCell className="p-2 sm:p-4 text-xs sm:text-sm">
+                  {task.weight}
+                </TableCell>
+                <TableCell className="p-2 sm:p-4 text-xs sm:text-sm sticky right-0 bg-white">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleEditTask(task)}
+                  >
+                    <Pencil className="h-4 w-4" />
+                    <span className="sr-only">Editar tarea</span>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleDeleteTask(task.id)}
+                  >
+                    <Save className="h-4 w-4" />
+                    <span className="sr-only">Eliminar tarea</span>
+                  </Button>
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {tasks.map((task) => (
-                <TableRow key={task.id} className="divide-x divide-gray-200">
-                  <TableCell className="p-2 sm:p-4 text-xs sm:text-sm break-words sticky left-0 bg-white">
-                    {task.name}
-                  </TableCell>
-                  <TableCell className="p-2 sm:p-4 text-xs sm:text-sm break-words">
-                    {task.description}
-                  </TableCell>
-                  <TableCell className="p-2 sm:p-4 text-xs sm:text-sm">
-                    {task.type}
-                  </TableCell>
-                  <TableCell className="p-2 sm:p-4 text-xs sm:text-sm">
-                    {task.startDate}
-                  </TableCell>
-                  <TableCell className="p-2 sm:p-4 text-xs sm:text-sm">
-                    {task.endDate}
-                  </TableCell>
-                  <TableCell className="p-2 sm:p-4 text-xs sm:text-sm text-center">
-                    {task.progress}%
-                  </TableCell>
-                  <TableCell className="p-2 sm:p-4 text-xs sm:text-sm text-center">
-                    {task.dependencies}
-                  </TableCell>
-                  <TableCell className="p-2 sm:p-4 text-xs sm:text-sm">
-                    {task.weight}
-                  </TableCell>
-                  <TableCell className="p-2 sm:p-4 text-xs sm:text-sm sticky right-0 bg-white">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleEditTask(task)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                      <span className="sr-only">Editar tarea</span>
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-
-          {/* Indicadores de scroll */}
-          {/* <div className="absolute left-0 top-0 h-full w-4 bg-gradient-to-r from-white to-transparent pointer-events-none" />
-          <div className="absolute right-0 top-0 h-full w-4 bg-gradient-to-l from-white to-transparent pointer-events-none" /> */}
-        </div>
+            ))}
+          </TableBody>
+        </Table>
       </div>
+
       <Button variant="default" className="gap-2" onClick={handleAddTask}>
         <Plus className="h-4 w-4" />
         Agregar Tarea

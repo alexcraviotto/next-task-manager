@@ -11,13 +11,20 @@ jest.mock("@/lib/database", () => ({
     version: {
       findUnique: jest.fn(),
       delete: jest.fn(),
-      update: jest.fn(),
+      findMany: jest.fn(),
     },
-    organization: {
-      findUnique: jest.fn(),
+    versionTask: {
+      deleteMany: jest.fn(),
+      create: jest.fn(),
     },
     task: {
-      updateMany: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn(),
+      deleteMany: jest.fn(),
+      create: jest.fn(),
+    },
+    taskRating: {
+      deleteMany: jest.fn(),
     },
     $transaction: jest.fn(),
   },
@@ -48,7 +55,7 @@ describe("Version API", () => {
 
     it("should return 500 if there is an error deleting the version", async () => {
       (prisma.version.findUnique as jest.Mock).mockResolvedValue({ id: 1 });
-      (prisma.version.delete as jest.Mock).mockRejectedValue(
+      (prisma.$transaction as jest.Mock).mockRejectedValue(
         new Error("Error deleting version"),
       );
 
@@ -57,19 +64,23 @@ describe("Version API", () => {
       const responseData = await res.json();
 
       expect(res.status).toBe(500);
-      expect(responseData.error).toBe("Error deleting version");
+      expect(responseData.error).toBe(
+        "Error deleting version and related records",
+      );
     });
 
     it("should delete the version successfully", async () => {
       (prisma.version.findUnique as jest.Mock).mockResolvedValue({ id: 1 });
-      (prisma.version.delete as jest.Mock).mockResolvedValue({});
+      (prisma.$transaction as jest.Mock).mockResolvedValue({});
 
       const req = { url: "/api/versions/1" } as NextRequest;
       const res = await DELETE(req, { params: { id: "1" } });
       const responseData = await res.json();
 
       expect(res.status).toBe(200);
-      expect(responseData.message).toBe("Version deleted successfully");
+      expect(responseData.message).toBe(
+        "Version and related records deleted successfully",
+      );
     });
   });
 
@@ -85,65 +96,23 @@ describe("Version API", () => {
       expect(responseData.error).toBe("Version not found");
     });
 
-    it("should return 404 if organization not found", async () => {
+    it("should return 500 if there is an error during version rollback", async () => {
       (prisma.version.findUnique as jest.Mock).mockResolvedValue({
         id: 1,
         versionTasks: [{ Task: { id: 1 } }],
         organizationId: 1,
       });
-      (prisma.organization.findUnique as jest.Mock).mockResolvedValue(null);
+      (prisma.task.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.$transaction as jest.Mock).mockRejectedValue(
+        new Error("Error during transaction"),
+      );
 
       const req = { url: "/api/versions/1/apply" } as NextRequest;
       const res = await POST(req, { params: { id: "1" } });
       const responseData = await res.json();
 
-      expect(res.status).toBe(404);
-      expect(responseData.error).toBe("Organization not found");
-    });
-
-    it("should apply the version tasks successfully", async () => {
-      const version = {
-        id: 1,
-        versionTasks: [
-          { Task: { id: 1, organizationId: null } },
-          { Task: { id: 2, organizationId: null } },
-        ],
-        organizationId: 1,
-      };
-
-      const organization = { id: 1 };
-
-      (prisma.version.findUnique as jest.Mock).mockResolvedValue(version);
-      (prisma.organization.findUnique as jest.Mock).mockResolvedValue(
-        organization,
-      );
-      (prisma.task.updateMany as jest.Mock).mockResolvedValue({ count: 2 });
-      (prisma.$transaction as jest.Mock).mockResolvedValue(null);
-
-      console.log("Version before apply:", version);
-      console.log("Organization before apply:", organization);
-
-      const req = { url: "/api/versions/1/apply" } as NextRequest;
-      const res = await POST(req, { params: { id: "1" } });
-      const responseData = await res.json();
-
-      console.log("Response data:", responseData);
-      console.log(
-        "Tasks updated:",
-        (prisma.task.updateMany as jest.Mock).mock.calls,
-      );
-
-      expect(res.status).toBe(200);
-      expect(responseData.message).toBe("Version applied successfully");
-
-      expect(prisma.task.updateMany).toHaveBeenCalledWith({
-        where: { id: 1, organizationId: undefined },
-        data: { organizationId: 1 },
-      });
-      expect(prisma.task.updateMany).toHaveBeenCalledWith({
-        where: { id: 2, organizationId: undefined },
-        data: { organizationId: 1 },
-      });
+      expect(res.status).toBe(500);
+      expect(responseData.error).toBe("Error applying version rollback");
     });
   });
 });

@@ -68,7 +68,7 @@ export async function GET(req: NextRequest) {
       // Get specific organization with its tasks
       const organization = await prisma.organization.findFirst({
         where: {
-          id: parseInt(id),
+          id: id,
           users: {
             some: {
               userId: user.id,

@@ -64,7 +64,7 @@ describe("POST /api/version", () => {
     const req = {
       json: jest
         .fn()
-        .mockResolvedValue({ organizationId: 1, versionNumber: 1 }),
+        .mockResolvedValue({ organizationId: 1, versionName: "Test" }),
     } as unknown as NextRequest;
 
     (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValue(null);
@@ -81,7 +81,7 @@ describe("POST /api/version", () => {
     const req = {
       json: jest
         .fn()
-        .mockResolvedValue({ organizationId: 1, versionNumber: 1 }),
+        .mockResolvedValue({ organizationId: 1, versionName: "Test" }),
     } as unknown as NextRequest;
 
     (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValue({
@@ -92,7 +92,7 @@ describe("POST /api/version", () => {
     (prisma.version.create as jest.Mock).mockResolvedValue({
       id: 1,
       organizationId: 1,
-      versionNumber: 1,
+      versionName: "Test",
     });
 
     (prisma.task.findMany as jest.Mock).mockResolvedValue([{ id: 1 }]);
@@ -108,7 +108,7 @@ describe("POST /api/version", () => {
     const req = {
       json: jest
         .fn()
-        .mockResolvedValue({ organizationId: 1, versionNumber: 1 }),
+        .mockResolvedValue({ organizationId: 1, versionName: "Test" }),
     } as unknown as NextRequest;
 
     (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValue({
