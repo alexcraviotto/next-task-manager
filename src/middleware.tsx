@@ -34,10 +34,10 @@ export default withAuth(
 
     const projectId = pathname.split("/")[3];
 
-    if (pathname === "/dashboard/projects" && !projectId) {
+    if (pathname === "/dashboard/organization" && !projectId) {
       const defaultProjectId = availableProjects[0].id;
       return NextResponse.redirect(
-        new URL(`/dashboard/projects/${defaultProjectId}`, request.url),
+        new URL(`/dashboard/organization/${defaultProjectId}`, request.url),
       );
     }
 
