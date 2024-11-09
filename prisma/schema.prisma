@@ -101,7 +101,7 @@ model TaskRating {
 model Version {
   id             Int           @id @default(autoincrement())
   organizationId String
-  versionNumber  Int
+  versionName  String
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
   organization   Organization  @relation("OrganizationVersions", fields: [organizationId], references: [id])
