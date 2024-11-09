@@ -20,31 +20,35 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useEffect, useState } from "react";
 import { sidebarItems, slugsToName } from "@/lib/types";
-import { ChevronDown, Settings, Plus } from "lucide-react";
+import { ChevronDown, Settings, Plus, Loader2, Trash2 } from "lucide-react";
 import CreateOrganization from "./dashboard/organization/createOrganization";
 import { useToast } from "@/hooks/use-toast";
+import { useOrganizations } from "@/hooks/use-organizations";
+import { useSession } from "next-auth/react";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 
-// Es un mockup de ejemplo, cuando tengamos la API de proyectos, esto se cambiará.
-const availableProjects = [
-  {
-    id: "b5afb04a-dc30-4443-b9e6-0ba3f3fe4412",
-    title: "Meta Inc.",
-  },
-  {
-    id: "4e1daa8a-7a1f-45fc-ae75-ea50cc5a7497",
-    title: "Tesla Inc.",
-  },
-];
-
-export function AppSidebar({
-  projectId,
-}: {
-  projectId: string | string[] | undefined;
-}) {
+export function AppSidebar({ projectId }: { projectId: string | undefined }) {
   const router = useRouter();
   const pathname = usePathname() || ""; // Evitar undefined
   const [showCreateOrg, setShowCreateOrg] = useState(false);
   const { toast } = useToast();
+  const { data } = useSession();
+  const { organizations, loading, error, addOrganization, removeOrganization } =
+    useOrganizations();
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [userId, setUserId] = useState<number | null>(null);
+  const [organizationToDelete, setOrganizationToDelete] = useState<
+    string | null
+  >(null);
 
   const handleProjectChange = (id: string) => {
     router.push(`/dashboard/organization/${id}`);
@@ -54,6 +58,70 @@ export function AppSidebar({
     // Construye la URL usando el projectId y el slug
     return `/dashboard/organization/${projectId}/${slug}`;
   };
+
+  const handleDeleteOrganization = async () => {
+    if (!organizationToDelete) return;
+
+    try {
+      const response = await fetch(
+        `/api/organizations/${organizationToDelete}`,
+        {
+          method: "DELETE",
+        },
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to delete organization");
+      }
+
+      removeOrganization(organizationToDelete);
+
+      // Si la organización eliminada es la actual, redirigir al dashboard
+      if (projectId === organizationToDelete) {
+        router.push("/dashboard");
+      }
+
+      toast({
+        description: "Organización eliminada correctamente",
+      });
+    } catch (error) {
+      console.error("Error deleting organization:", error);
+      toast({
+        variant: "destructive",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Error al eliminar la organización",
+      });
+    } finally {
+      setShowDeleteDialog(false);
+      setOrganizationToDelete(null);
+    }
+  };
+
+  const handleOrgSelect = (orgId: string) => {
+    handleProjectChange(orgId);
+  };
+
+  useEffect(() => {
+    const fetchUserId = async () => {
+      try {
+        const response = await fetch("/api/users/me");
+        if (response.ok) {
+          const data = await response.json();
+          setUserId(data.id);
+        }
+      } catch (error) {
+        console.error("Error fetching user id:", error);
+      }
+    };
+
+    if (data?.user) {
+      fetchUserId();
+    }
+  }, [data?.user]);
+
   useEffect(() => {
     // Aqui comprobaremos si el uuid del parametro existe y pertenece al usuario
   }, []);
@@ -66,28 +134,67 @@ export function AppSidebar({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <SidebarMenuButton className="text-md h-full">
-                  {availableProjects.find((project) => project.id === projectId)
-                    ?.title || "Proyectos"}
+                  {loading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    organizations.find((org) => org.id === projectId)?.name ||
+                    "Seleccionar organización"
+                  )}
                   <ChevronDown className="ml-auto" />
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-[--radix-popper-anchor-width] p-2">
-                {availableProjects.map((project) => (
-                  <DropdownMenuItem
-                    key={project.id}
-                    onClick={() => handleProjectChange(project.id)}
-                  >
-                    <span>{project.title}</span>
+                {loading ? (
+                  <DropdownMenuItem disabled>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Cargando...
                   </DropdownMenuItem>
-                ))}
-                <DropdownMenuItem className="h-px bg-muted my-2" />
-                <DropdownMenuItem
-                  onClick={() => setShowCreateOrg(true)}
-                  className="cursor-pointer flex items-center gap-2 text-primary"
-                >
-                  <Plus size={16} />
-                  <span>Nueva organización</span>
-                </DropdownMenuItem>
+                ) : error ? (
+                  <DropdownMenuItem disabled className="text-destructive">
+                    Error al cargar organizaciones
+                  </DropdownMenuItem>
+                ) : organizations.length === 0 ? (
+                  <DropdownMenuItem disabled>
+                    No hay organizaciones
+                  </DropdownMenuItem>
+                ) : (
+                  organizations.map((org) => (
+                    <DropdownMenuItem
+                      key={org.id}
+                      onClick={() => handleOrgSelect(org.id)}
+                    >
+                      <span className="flex-grow">{org.name}</span>
+                      {org.createdById === userId && (
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setOrganizationToDelete(org.id);
+                            setShowDeleteDialog(true);
+                          }}
+                          className="ml-2"
+                        >
+                          <Trash2
+                            size={16}
+                            className="text-destructive hover:text-destructive/90"
+                          />
+                        </button>
+                      )}
+                    </DropdownMenuItem>
+                  ))
+                )}
+                {data?.user?.isAdmin && (
+                  <>
+                    <DropdownMenuItem className="h-px bg-muted my-2" />
+                    <DropdownMenuItem
+                      onClick={() => setShowCreateOrg(true)}
+                      className="cursor-pointer flex items-center gap-2 text-primary"
+                    >
+                      <Plus size={16} />
+                      <span>Nueva organización</span>
+                    </DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </SidebarMenuItem>
@@ -146,14 +253,37 @@ export function AppSidebar({
           isOpen={showCreateOrg}
           onClose={() => setShowCreateOrg(false)}
           onSuccess={(newOrg) => {
-            console.log(newOrg);
-            // Aquí puedes manejar la actualización de la lista de organizaciones
             setShowCreateOrg(false);
-            // Opcional: Actualizar la lista de organizaciones o redirigir
-            toast({ description: "Organización creada correctamente" });
+            // En lugar de recargar la página, actualizamos el estado local
+            addOrganization(newOrg);
+            toast({
+              description: "Organización creada correctamente",
+            });
           }}
         />
       )}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción eliminará permanentemente la organización y todos sus
+              datos asociados.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setOrganizationToDelete(null)}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteOrganization}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Sidebar>
   );
 }

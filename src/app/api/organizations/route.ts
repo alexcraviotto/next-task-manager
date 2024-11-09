@@ -38,6 +38,13 @@ export async function POST(req: NextRequest) {
   const newOrganization = await prisma.organization.create({
     data: { name, createdById: existingUser.id },
   });
+  await prisma.userOrganization.create({
+    data: {
+      userId: existingUser.id,
+      organizationId: newOrganization.id,
+      weight: 0,
+    },
+  });
 
   return NextResponse.json(
     { message: "Success", organization: newOrganization },

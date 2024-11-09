@@ -33,9 +33,9 @@ model Organization {
   createdById Int
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
-  users       UserOrganization[]
-  tasks       Task[]             @relation("OrganizationTasks")
-  versions    Version[]          @relation("OrganizationVersions")
+  users     UserOrganization[] @relation("OrganizationToUserOrganization")
+  tasks     Task[]            @relation("OrganizationToTask")
+  versions  Version[]         @relation("OrganizationToVersion")
   createdBy   User              @relation("CreatedByUser", fields: [createdById], references: [id]) // Nueva relación
 }
 
@@ -45,7 +45,7 @@ model UserOrganization {
   organizationId String // Cambiado a String
   weight         Int // Peso del cliente dado por el admin
   User           User         @relation(fields: [userId], references: [id])
-  Organization   Organization @relation(fields: [organizationId], references: [id])
+  organization Organization @relation("OrganizationToUserOrganization", fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@id([userId, organizationId])
 }
@@ -64,7 +64,7 @@ model Task {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  organization Organization  @relation("OrganizationTasks", fields: [organizationId], references: [id])
+  organization   Organization @relation("OrganizationToTask", fields: [organizationId], references: [id], onDelete: Cascade)
   createdBy    User          @relation("UserTasks", fields: [createdById], references: [id])
   taskRatings  TaskRating[]
   versionTasks VersionTask[]
@@ -77,8 +77,8 @@ model Task {
 model VersionTask {
   versionId Int
   taskId    Int
-  Version   Version @relation(fields: [versionId], references: [id])
-  Task      Task    @relation(fields: [taskId], references: [id])
+  Version   Version @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  Task      Task    @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@id([versionId, taskId])
 }
@@ -91,8 +91,8 @@ model TaskRating {
   clientSatisfaction Int? @default(0) @map("client_satisfaction")
   clientWeight       Int? @default(0) @map("client_weight")
   effort             Int? @default(0)
-  task               Task @relation(fields: [taskId], references: [id])
-  user               User @relation(fields: [userId], references: [id])
+  task               Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user               User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([taskId, userId])
 }
@@ -104,7 +104,7 @@ model Version {
   versionName  String
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
-  organization   Organization  @relation("OrganizationVersions", fields: [organizationId], references: [id])
+  organization   Organization @relation("OrganizationToVersion", fields: [organizationId], references: [id], onDelete: Cascade)
   versionTasks   VersionTask[]
 }
 
@@ -116,7 +116,7 @@ model OTP {
   createdAt DateTime @default(now())
   isUsed    Boolean  @default(false)
   userId    Int
-  user      User     @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([email, isUsed, expiresAt]) // Índice compuesto para búsquedas eficientes
   @@index([code, isUsed]) // Para validaciones rápidas de código
