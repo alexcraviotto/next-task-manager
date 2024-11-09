@@ -2,21 +2,22 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-
-interface Organization {
-  id: string;
-  name: string;
-}
+import { useSession } from "next-auth/react";
+import { useOrganizations } from "@/hooks/use-organizations";
+import { Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 export default function OrganizationsPage() {
   const [showJoinOrg, setShowJoinOrg] = useState(false);
-  const organizations: Organization[] = [
-    { id: "1", name: "ACME Inc." },
-    { id: "2", name: "Adidas" },
-    { id: "3", name: "Nike" },
-  ];
+  const { data } = useSession();
+  const { organizations, loading, error } = useOrganizations();
+
+  console.log("🚀 ~ OrganizationsPage ~ data:", JSON.stringify(data));
   const [inviteCode, setInviteCode] = useState("");
   const router = useRouter();
+  const [isJoining, setIsJoining] = useState(false);
+  const [joinError, setJoinError] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const handleShowJoinOrg = () => {
     setShowJoinOrg(true);
@@ -26,14 +27,66 @@ export default function OrganizationsPage() {
     setShowJoinOrg(false);
   };
 
-  const handleJoin = () => {
-    // Aquí iría la lógica para unirse a la organización
-    console.log("Unirse con código:", inviteCode);
-    // Después de unirse exitosamente:
-    setShowJoinOrg(false);
-    // Luego, redirigir a la página de la organización (hacerlo luego correctamente. Lo hago para hacer commit & push)
-    router.push("/auth/register");
+  const handleJoin = async () => {
+    if (!inviteCode.trim()) {
+      setJoinError("El código de invitación es requerido");
+      return;
+    }
+
+    setIsJoining(true);
+    setJoinError(null);
+
+    try {
+      const response = await fetch("/api/organizations/join", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id: inviteCode }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Error al unirse a la organización");
+      }
+
+      toast({
+        description: "Te has unido a la organización correctamente",
+      });
+
+      // Redirigir a la página de la organización
+      router.push(`/dashboard/organization/${data.organization.id}`);
+    } catch (error) {
+      setJoinError(
+        error instanceof Error
+          ? error.message
+          : "Error al unirse a la organización",
+      );
+    } finally {
+      setIsJoining(false);
+    }
   };
+
+  // Renderizado condicional para estados de carga y error
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-red-600">Error</h2>
+          <p className="text-gray-600">{error}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -62,7 +115,7 @@ export default function OrganizationsPage() {
                       <span role="img" aria-label="waving hand">
                         👋
                       </span>
-                      Hola, Javi.
+                      Hola, {data?.user?.username ?? "Sin nombre"}.
                     </h1>
                     <p className="text-gray-600 mt-2">
                       Estas son tus organizaciones.
@@ -75,6 +128,9 @@ export default function OrganizationsPage() {
                         key={org.id}
                         className="w-full text-left p-3 rounded-lg border border-gray-200 
                          hover:bg-gray-50 transition-colors duration-150"
+                        onClick={() =>
+                          router.push(`/dashboard/organization/${org.id}`)
+                        }
                       >
                         {org.name}
                       </button>
@@ -98,8 +154,7 @@ export default function OrganizationsPage() {
                     Unirse a Organización
                   </h2>
                   <p className="text-gray-600 mb-4">
-                    Has sido invitado a unirte a ACME Inc. Introduzca el código
-                    de invitación para continuar.
+                    Introduzca el código de invitación para continuar.
                   </p>
 
                   <div className="mb-6">
@@ -109,10 +164,19 @@ export default function OrganizationsPage() {
                     <input
                       type="text"
                       value={inviteCode}
-                      onChange={(e) => setInviteCode(e.target.value)}
-                      className="w-full p-2 border rounded-md"
-                      placeholder="Entra tu código de invitación"
+                      onChange={(e) => {
+                        setInviteCode(e.target.value);
+                        setJoinError(null);
+                      }}
+                      className={`w-full p-2 border rounded-md ${
+                        joinError ? "border-red-500" : "border-gray-300"
+                      }`}
+                      placeholder="Introduce tu código de invitación"
+                      disabled={isJoining}
                     />
+                    {joinError && (
+                      <p className="mt-1 text-sm text-red-600">{joinError}</p>
+                    )}
                   </div>
 
                   <p className="text-sm text-gray-500 mb-6">
@@ -125,14 +189,23 @@ export default function OrganizationsPage() {
                     <button
                       onClick={handleDecline}
                       className="px-4 py-2 border rounded-md hover:bg-gray-50"
+                      disabled={isJoining}
                     >
                       Declinar
                     </button>
                     <button
                       onClick={handleJoin}
-                      className="px-4 py-2 bg-black text-white rounded-md hover:bg-gray-800"
+                      className="px-4 py-2 bg-black text-white rounded-md hover:bg-gray-800 disabled:opacity-50"
+                      disabled={isJoining}
                     >
-                      Unirse
+                      {isJoining ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin mr-2 inline" />
+                          Uniéndose...
+                        </>
+                      ) : (
+                        "Unirse"
+                      )}
                     </button>
                   </div>
                 </div>

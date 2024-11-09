@@ -11,7 +11,7 @@
  *
  * Ruta: src/app/auth/login/layout.tsx
  */
-
+import Image from "next/image";
 import type { Metadata } from "next";
 import { Be_Vietnam_Pro } from "next/font/google";
 import Providers from "../../Providers";
@@ -54,14 +54,16 @@ export default function LoginLayout({ children }: Readonly<LayoutProps>) {
           {/* Contenedor principal con altura mínima de pantalla completa */}
           <div className="flex min-h-screen">
             {/* Columna izquierda: Imagen de fondo */}
-            <div
-              className="hidden md:block md:w-1/2 bg-cover bg-center bg-no-repeat"
-              style={{
-                backgroundImage: 'url("/background-inicio_sesion.png")',
-                backgroundColor: "#f3f4f6", // Fallback color
-              }}
-              aria-hidden="true"
-            />
+            <div className="hidden md:block md:w-1/2 relative">
+              <Image
+                src="/background-inicio_sesion.png"
+                alt="Background"
+                fill
+                priority
+                className="object-cover"
+                quality={100}
+              />
+            </div>
 
             {/* Columna derecha: Contenido del login */}
             <div className="w-full md:w-1/2 flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 bg-white">

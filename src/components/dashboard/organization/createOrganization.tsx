@@ -5,7 +5,11 @@ import { Button } from "@/components/ui/button";
 interface CreateOrganizationProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (organization: { id: number; name: string }) => void;
+  onSuccess: (organization: {
+    id: string;
+    name: string;
+    createdById: number;
+  }) => void;
 }
 
 export default function CreateOrganization({

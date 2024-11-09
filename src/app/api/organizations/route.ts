@@ -38,6 +38,13 @@ export async function POST(req: NextRequest) {
   const newOrganization = await prisma.organization.create({
     data: { name, createdById: existingUser.id },
   });
+  await prisma.userOrganization.create({
+    data: {
+      userId: existingUser.id,
+      organizationId: newOrganization.id,
+      weight: 0,
+    },
+  });
 
   return NextResponse.json(
     { message: "Success", organization: newOrganization },
@@ -68,7 +75,7 @@ export async function GET(req: NextRequest) {
       // Get specific organization with its tasks
       const organization = await prisma.organization.findFirst({
         where: {
-          id: parseInt(id),
+          id: id,
           users: {
             some: {
               userId: user.id,
