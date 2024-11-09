@@ -153,7 +153,13 @@ export function TaskTable({ projectId }: { projectId: string }) {
                 Dependientes
               </TableHead>
               <TableHead className="p-2 sm:p-4 text-xs sm:text-sm w-[120px]">
+                Satisfacción
+              </TableHead>
+              <TableHead className="p-2 sm:p-4 text-xs sm:text-sm w-[120px]">
                 Peso
+              </TableHead>
+              <TableHead className="p-2 sm:p-4 text-xs sm:text-sm w-[120px]">
+                Esfuerzo
               </TableHead>
               <TableHead className="p-2 sm:p-4 text-xs sm:text-sm sticky right-0 bg-white z-20 w-[100px]">
                 Acciones
@@ -185,7 +191,13 @@ export function TaskTable({ projectId }: { projectId: string }) {
                   {task.dependencies}
                 </TableCell>
                 <TableCell className="p-2 sm:p-4 text-xs sm:text-sm">
-                  {task.weight}
+                  0
+                </TableCell>
+                <TableCell className="p-2 sm:p-4 text-xs sm:text-sm">
+                  {task.weight ?? 0}
+                </TableCell>
+                <TableCell className="p-2 sm:p-4 text-xs sm:text-sm">
+                  0
                 </TableCell>
                 <TableCell className="p-2 sm:p-4 text-xs sm:text-sm sticky right-0 bg-white">
                   <Button
