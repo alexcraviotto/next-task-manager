@@ -17,7 +17,7 @@ const prismaClientMock = {
 jest.mock("@prisma/client", () => ({
   PrismaClient: jest.fn(() => prismaClientMock),
 }));
-import { DELETE } from "./route";
+import { DELETE } from "../route";
 
 describe("DELETE /api/organizations/[id]", () => {
   const mockSession = {

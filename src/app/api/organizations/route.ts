@@ -25,7 +25,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: "User not found" }, { status: 404 });
   }
 
-  // Check if organization name already exists
   const existingOrganization = await prisma.organization.findUnique({
     where: { name },
   });
@@ -34,7 +33,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: "Name exists" }, { status: 400 });
   }
 
-  // Create new organization
   const newOrganization = await prisma.organization.create({
     data: { name, createdById: existingUser.id },
   });
@@ -72,10 +70,9 @@ export async function GET(req: NextRequest) {
     }
 
     if (id) {
-      // Get specific organization with its tasks
       const organization = await prisma.organization.findFirst({
         where: {
-          id: id,
+          id,
           users: {
             some: {
               userId: user.id,
@@ -85,9 +82,36 @@ export async function GET(req: NextRequest) {
         include: {
           tasks: {
             include: {
-              taskRatings: true,
+              createdBy: {
+                select: {
+                  id: true,
+                  username: true,
+                  email: true,
+                },
+              },
+              taskRatings: {
+                where: {
+                  userId: user.id,
+                },
+                select: {
+                  clientSatisfaction: true,
+                  clientWeight: true,
+                  effort: true,
+                },
+              },
               dependencies: true,
               dependentOn: true,
+            },
+          },
+          users: {
+            include: {
+              User: {
+                select: {
+                  id: true,
+                  username: true,
+                  email: true,
+                },
+              },
             },
           },
         },
@@ -102,7 +126,6 @@ export async function GET(req: NextRequest) {
 
       return NextResponse.json(organization);
     } else {
-      // Get all organizations for this user
       const organizations = await prisma.organization.findMany({
         where: {
           users: {

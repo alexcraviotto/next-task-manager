@@ -25,9 +25,9 @@ export async function PUT(
     if (!task) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
-    const taskId = parseInt(id);
+    const userId = parseInt(session.user.id);
 
-    if (task.createdById !== taskId) {
+    if (task.createdById !== userId) {
       return NextResponse.json({ message: "Forbidden" }, { status: 403 });
     }
 
@@ -65,9 +65,9 @@ export async function DELETE(
     if (!task) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
-    const taskId = parseInt(id);
+    const userId = parseInt(session.user.id);
 
-    if (task.createdById !== taskId) {
+    if (task.createdById !== userId) {
       return NextResponse.json({ message: "Forbidden" }, { status: 403 });
     }
 
