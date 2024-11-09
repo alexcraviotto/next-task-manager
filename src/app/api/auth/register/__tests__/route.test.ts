@@ -4,6 +4,7 @@
 import "dotenv/config";
 
 import { NextRequest } from "next/server";
+import nodemailer from "nodemailer";
 
 const prismaClientMock = {
   user: {
@@ -18,6 +19,13 @@ jest.mock("@prisma/client", () => ({
 
 jest.mock("bcrypt", () => ({
   hash: jest.fn(() => Promise.resolve("hashedPassword123")),
+}));
+
+// Mock Nodemailer para simular el envio de correos
+jest.mock("nodemailer", () => ({
+  createTransport: jest.fn().mockReturnValue({
+    sendMail: jest.fn().mockResolvedValue("Email sent successfully"), // Simula el envio del correo
+  }),
 }));
 
 import { POST } from "../route";
@@ -50,8 +58,20 @@ describe("POST /api/auth/register", () => {
     const response = await POST(req);
     const data = await response.json();
 
+    // Verifica que se haya creado el usuario correctamente
     expect(response.status).toBe(201);
     expect(data).toEqual({ message: "Created, welcome :)" });
+
+    // Verifica que se haya llamado a la función sendMail para enviar el correo
+    const transport = nodemailer.createTransport(); // Obtiene la instancia mockeada
+    expect(transport.sendMail).toHaveBeenCalledTimes(1); // llamada exactamente una vez
+    expect(transport.sendMail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        from: "nexttaskmanager@gmail.com",
+        to: userData.email,
+        subject: "Confirmación de Registro",
+      }),
+    );
   });
 
   it("should return 400 if required fields are missing", async () => {
@@ -75,6 +95,7 @@ describe("POST /api/auth/register", () => {
     expect(data).toEqual({ message: "Invalid parameters" });
     expect(prismaClientMock.user.findUnique).not.toHaveBeenCalled();
     expect(prismaClientMock.user.create).not.toHaveBeenCalled();
+    expect(nodemailer.createTransport().sendMail).not.toHaveBeenCalled();
   });
 
   it("should return 400 if user already exists", async () => {
@@ -106,6 +127,7 @@ describe("POST /api/auth/register", () => {
       where: { email: userData.email },
     });
     expect(prismaClientMock.user.create).not.toHaveBeenCalled();
+    expect(nodemailer.createTransport().sendMail).not.toHaveBeenCalled();
   });
 
   it("should return 500 on internal server error", async () => {
@@ -133,5 +155,6 @@ describe("POST /api/auth/register", () => {
     expect(response.status).toBe(500);
     expect(data).toEqual({ message: "Internal Server Error" });
     expect(prismaClientMock.user.findUnique).toHaveBeenCalled();
+    expect(nodemailer.createTransport().sendMail).not.toHaveBeenCalled();
   });
 });
