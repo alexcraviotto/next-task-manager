@@ -38,14 +38,8 @@ next-env.d.ts
 .env.production
 
 # prisma
-prisma
 /prisma/dev.db
-/prisma/.env
-/prisma/.env.development
-/prisma/.env.test
-/prisma/.env.production
-/prisma/migration-lock.toml
-/prisma/client/node_modules
-/prisma/client/yarn.lock
-.dev.db
+/prisma/dev.db-journal
+/prisma/.env*
+/prisma/client
 

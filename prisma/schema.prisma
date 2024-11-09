@@ -16,7 +16,8 @@ model User {
   password   String
   isAdmin    Boolean @default(false)
   isVerified Boolean @default(false)
-
+  isActive   Boolean @default(true)
+  
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
   organizations UserOrganization[] // Relación hacia UserOrganization
