@@ -18,9 +18,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { sidebarItems, slugsToName } from "@/lib/types";
-import { ChevronDown, Settings } from "lucide-react";
+import { ChevronDown, Settings, Plus } from "lucide-react";
+import CreateOrganization from "./dashboard/organization/createOrganization";
+import { useToast } from "@/hooks/use-toast";
 
 // Es un mockup de ejemplo, cuando tengamos la API de proyectos, esto se cambiará.
 const availableProjects = [
@@ -41,14 +43,16 @@ export function AppSidebar({
 }) {
   const router = useRouter();
   const pathname = usePathname() || ""; // Evitar undefined
+  const [showCreateOrg, setShowCreateOrg] = useState(false);
+  const { toast } = useToast();
 
   const handleProjectChange = (id: string) => {
-    router.push(`/dashboard/projects/${id}`);
+    router.push(`/dashboard/organization/${id}`);
   };
 
   const buildUrl = (slug: string) => {
     // Construye la URL usando el projectId y el slug
-    return `/dashboard/projects/${projectId}/${slug}`;
+    return `/dashboard/organization/${projectId}/${slug}`;
   };
   useEffect(() => {
     // Aqui comprobaremos si el uuid del parametro existe y pertenece al usuario
@@ -67,7 +71,7 @@ export function AppSidebar({
                   <ChevronDown className="ml-auto" />
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-[--radix-popper-anchor-width]">
+              <DropdownMenuContent className="w-[--radix-popper-anchor-width] p-2">
                 {availableProjects.map((project) => (
                   <DropdownMenuItem
                     key={project.id}
@@ -76,6 +80,14 @@ export function AppSidebar({
                     <span>{project.title}</span>
                   </DropdownMenuItem>
                 ))}
+                <DropdownMenuItem className="h-px bg-muted my-2" />
+                <DropdownMenuItem
+                  onClick={() => setShowCreateOrg(true)}
+                  className="cursor-pointer flex items-center gap-2 text-primary"
+                >
+                  <Plus size={16} />
+                  <span>Nueva organización</span>
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </SidebarMenuItem>
@@ -129,6 +141,19 @@ export function AppSidebar({
           </div>
         </SidebarMenuButton>
       </SidebarFooter>
+      {showCreateOrg && (
+        <CreateOrganization
+          isOpen={showCreateOrg}
+          onClose={() => setShowCreateOrg(false)}
+          onSuccess={(newOrg) => {
+            console.log(newOrg);
+            // Aquí puedes manejar la actualización de la lista de organizaciones
+            setShowCreateOrg(false);
+            // Opcional: Actualizar la lista de organizaciones o redirigir
+            toast({ description: "Organización creada correctamente" });
+          }}
+        />
+      )}
     </Sidebar>
   );
 }
