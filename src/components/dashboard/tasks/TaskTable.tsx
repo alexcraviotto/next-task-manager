@@ -26,7 +26,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useTasks } from "@/hooks/useTasks";
 import { Loader2 } from "lucide-react";
 
 interface Task {
@@ -40,6 +39,8 @@ interface Task {
   dependencies: number;
   weight: number;
   organizationId: string;
+  effort: number;
+  clientWeight: number;
 }
 
 const formatDateForInput = (date: string): string => {
@@ -62,8 +63,130 @@ const parseInputDate = (dateString: string): string => {
 export function TaskTable({ projectId }: { projectId: string }) {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const { tasks, isLoading, error, addTask, updateTask, deleteTask } =
-    useTasks(projectId);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasksLoading, setTasksLoading] = useState(false);
+  const [tasksError, setTasksError] = useState<string | null>(null);
+
+  // Función para cargar las tareas
+  const fetchTasks = async () => {
+    setTasksLoading(true);
+    setTasksError(null);
+    try {
+      const response = await fetch(`/api/tasks?projectId=${projectId}`);
+      if (!response.ok) {
+        throw new Error("Error al cargar las tareas");
+      }
+      const data = await response.json();
+      setTasks(data);
+    } catch (err) {
+      setTasksError(err instanceof Error ? err.message : "Error desconocido");
+    } finally {
+      setTasksLoading(false);
+    }
+  };
+
+  // Función para agregar una nueva tarea
+  const addTask = async (task: Omit<Task, "id">) => {
+    try {
+      const response = await fetch("/api/tasks", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(task),
+      });
+
+      if (!response.ok) {
+        throw new Error("Error al crear la tarea");
+      }
+
+      const newTask = await response.json();
+      setTasks((prevTasks) => [...prevTasks, newTask]);
+      return newTask;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  // Función para actualizar una tarea existente
+  const updateTask = async (taskId: number, taskData: Partial<Task>) => {
+    try {
+      const response = await fetch(`/api/tasks/${taskId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(taskData),
+      });
+
+      if (!response.ok) {
+        throw new Error("Error al actualizar la tarea");
+      }
+
+      const updatedTask = await response.json();
+      setTasks((prevTasks) =>
+        prevTasks.map((task) =>
+          task.id === taskId ? { ...task, ...updatedTask } : task,
+        ),
+      );
+      return updatedTask;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  // Función para eliminar una tarea
+  const deleteTask = async (taskId: number) => {
+    try {
+      const response = await fetch(`/api/tasks/${taskId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error("Error al eliminar la tarea");
+      }
+
+      setTasks((prevTasks) => prevTasks.filter((task) => task.id !== taskId));
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  // Función para actualizar la valoración de una tarea
+  const updateTaskRating = async (
+    taskId: number,
+    data: { organizationId?: string; effort?: number; clientWeight?: number },
+  ) => {
+    setIsLoading(true);
+    console.log("Loading: ", isLoading);
+    setError(null);
+    console.log("Error: ", error);
+
+    try {
+      const response = await fetch(`/api/tasks/${taskId}/feedback`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Error al actualizar la valoración");
+      }
+
+      return result;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error desconocido");
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleAddTask = () => {
     const today = new Date().toISOString();
@@ -77,6 +200,8 @@ export function TaskTable({ projectId }: { projectId: string }) {
       dependencies: 0,
       weight: 0,
       organizationId: projectId,
+      effort: 0,
+      clientWeight: 0,
     };
     setEditingTask(newTask as Task);
     setIsDialogOpen(true);
@@ -93,11 +218,24 @@ export function TaskTable({ projectId }: { projectId: string }) {
     try {
       if ("id" in editingTask) {
         await updateTask(editingTask.id, editingTask);
+        // Actualizar la valoración si hay cambios en effort o clientWeight
+        if (
+          editingTask.effort !== undefined ||
+          editingTask.clientWeight !== undefined
+        ) {
+          await updateTaskRating(editingTask.id, {
+            organizationId: editingTask.organizationId,
+            effort: editingTask.effort,
+            clientWeight: editingTask.clientWeight,
+          });
+        }
       } else {
         await addTask(editingTask);
       }
       setIsDialogOpen(false);
       setEditingTask(null);
+      // Recargar las tareas después de guardar
+      await fetchTasks();
     } catch (error) {
       console.error("Error saving task:", error);
     }
@@ -111,7 +249,7 @@ export function TaskTable({ projectId }: { projectId: string }) {
     }
   };
 
-  if (isLoading) {
+  if (tasksLoading) {
     return (
       <div className="w-full h-48 flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -119,9 +257,11 @@ export function TaskTable({ projectId }: { projectId: string }) {
     );
   }
 
-  if (error) {
+  if (tasksError) {
     return (
-      <div className="w-full p-4 text-center text-red-500">Error: {error}</div>
+      <div className="w-full p-4 text-center text-red-500">
+        Error: {tasksError}
+      </div>
     );
   }
 
