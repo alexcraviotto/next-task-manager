@@ -60,3 +60,25 @@ export const slugsToName: SlugToName = {
   settings: { name: "Ajustes", icon: Settings },
   "": { name: "Inicio", icon: Home },
 };
+export interface Task {
+  id: number;
+  name: string;
+  description: string;
+  type: string;
+  startDate: string;
+  endDate: string;
+  progress: number;
+  dependencies: number;
+  weight: number;
+  organizationId: string;
+  createdAt: string;
+}
+export interface Member {
+  id: number;
+  username: string;
+  email: string;
+  isAdmin: boolean;
+  createdAt: string;
+  updatedAt: string;
+  weight: number;
+}

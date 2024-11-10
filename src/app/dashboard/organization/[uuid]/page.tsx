@@ -4,26 +4,42 @@ import { DashboardStructure } from "@/components/dashboard/DashboardStructure";
 import { DashboardTitle } from "@/components/dashboard/DashboardTitle";
 import { InfoTask } from "@/components/dashboard/home/InfoTask";
 import MonthlyChart from "@/components/dashboard/home/MonthlyChart";
+import { Loader2 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useTasks } from "@/hooks/useTasks";
-import { useMembers } from "@/hooks/use-members";
-import { DashboardSkeleton } from "@/components/DashboardSkeleton";
 import { motion } from "framer-motion";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
 
 export default function Dashboard({ params }: { params: { uuid: string } }) {
   const router = useRouter();
   const { data } = useSession();
   const [loading, setLoading] = useState(true);
-  const { tasks, isLoading: tasksLoading } = useTasks(params.uuid);
-  const { members, isLoading: membersLoading } = useMembers(params.uuid);
-
-  // Calculate task statistics
-  const totalTasks = tasks.length;
-  const completedTasks = tasks.filter((task) => task.progress === 100).length;
-  const pendingTasks = tasks.filter((task) => task.progress < 100).length;
-  const totalMembers = members.length;
+  const [organizationData, setOrganizationData] =
+    useState<OrganizationData | null>(null);
+  interface OrganizationData {
+    totalTasks: number;
+    completedTasks: number;
+    pendingTasks: number;
+    users: { username: string }[];
+    tasks: {
+      name: string;
+      progress: number;
+      startDate: string;
+      endDate: string;
+      createdBy: { username: string };
+    }[];
+    totalProgress: number;
+  }
 
   useEffect(() => {
     const fetchOrganization = async () => {
@@ -33,6 +49,9 @@ export default function Dashboard({ params }: { params: { uuid: string } }) {
           router.push("/dashboard/organization");
           return;
         }
+        const data = await response.json();
+        setOrganizationData(data);
+        console.log("Organization data:", data);
       } catch (error) {
         console.error("Error fetching organization:", error);
         router.push("/dashboard/organization");
@@ -46,72 +65,173 @@ export default function Dashboard({ params }: { params: { uuid: string } }) {
     }
   }, [params.uuid, router]);
 
+  if (loading) {
+    return (
+      <DashboardStructure>
+        <div className="flex h-full items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      </DashboardStructure>
+    );
+  }
+
   const toCapitalize = (name: string | undefined) =>
     name ? name[0].toUpperCase() + name.slice(1) : "NoName";
 
-  // Variantes para la animación de entrada
   const containerVariants = {
-    hidden: { opacity: 0, y: 10 },
+    hidden: { opacity: 0 },
     visible: {
       opacity: 1,
-      y: 0,
-      transition: { duration: 0.6, ease: "easeOut" },
+      transition: { duration: 0.6, ease: "easeOut", staggerChildren: 0.1 },
     },
   };
 
   const itemVariants = {
-    hidden: { opacity: 0, scale: 0.9 },
-    visible: { opacity: 1, scale: 1, transition: { duration: 0.4 } },
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.4 } },
   };
-  if (loading || tasksLoading || membersLoading) {
-    return (
+
+  return (
+    <DashboardStructure>
       <motion.div
         initial="hidden"
         animate="visible"
         variants={containerVariants}
+        className="space-y-6 m-5"
       >
-        <DashboardStructure>
-          <DashboardSkeleton />
-        </DashboardStructure>
+        <motion.div
+          variants={itemVariants}
+          className="flex justify-between items-center"
+        >
+          <DashboardTitle
+            title={`👋 Bienvenido, ${toCapitalize(data?.user?.username)}`}
+          />
+        </motion.div>
+
+        <motion.div
+          variants={itemVariants}
+          className="grid grid-cols-1 md:grid-cols-4 gap-4"
+        >
+          <InfoTask
+            name="Tareas totales"
+            value={organizationData?.totalTasks || 0}
+            slug="tasks"
+          />
+          <InfoTask
+            name="Tareas completadas"
+            value={organizationData?.completedTasks || 0}
+            slug="tasks"
+          />
+          <InfoTask
+            name="Tareas pendientes"
+            value={organizationData?.pendingTasks || 0}
+            slug="tasks"
+          />
+          <InfoTask
+            name="Miembros"
+            value={organizationData?.users?.length || 0}
+            slug="members"
+          />
+        </motion.div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <motion.div variants={itemVariants} className="md:col-span-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Progreso mensual</CardTitle>
+                <CardDescription>
+                  Visualización de tareas completadas por mes
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <MonthlyChart tasks={organizationData?.tasks} />
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          <motion.div variants={itemVariants}>
+            <Card className="h-full">
+              <CardHeader>
+                <CardTitle>Actividad reciente</CardTitle>
+                <CardDescription>
+                  Últimas actualizaciones del equipo
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="h-[300px] pr-4">
+                  {organizationData?.tasks?.slice(-5).map((task, index) => (
+                    <div key={index} className="flex items-center mb-4">
+                      <div>
+                        <p className="text-sm font-medium">
+                          {task.createdBy.username}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {task.progress === 100
+                            ? "Completó"
+                            : {
+                                0: "Creó",
+                                25: "Inició",
+                                50: "Avanzó",
+                                75: "Casi completó",
+                              }[task.progress] || "Actualizó"}{" "}
+                          {task.progress === 100 ? "la tarea" : "la tarea"}{" "}
+                          {task.name}
+                          <Badge variant="outline" className="ml-2">
+                            {task.progress}% completado
+                          </Badge>
+                          <div></div>
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </ScrollArea>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
+
+        <motion.div variants={itemVariants}>
+          <Card>
+            <CardHeader>
+              <CardTitle>Progreso del proyecto</CardTitle>
+              <CardDescription>Estado actual del proyecto</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4  m-4">
+                <div>
+                  <div className="flex justify-between mb-2 ">
+                    <span className="text-sm font-medium">Progreso total</span>
+                    <span className="text-sm font-medium">
+                      {organizationData?.totalProgress || 0}%
+                    </span>
+                  </div>
+                  <Progress
+                    value={organizationData?.totalProgress || 0}
+                    className="h-3"
+                  />
+                </div>
+                {organizationData !== null && (
+                  <p className="text-sm text-muted-foreground mt-2">
+                    {organizationData?.totalProgress < 25 &&
+                      "El proyecto está en sus etapas iniciales."}
+                    {organizationData?.totalProgress >= 25 &&
+                      organizationData?.totalProgress < 50 &&
+                      "El proyecto está avanzando constantemente."}
+                    {organizationData?.totalProgress >= 50 &&
+                      organizationData?.totalProgress < 75 &&
+                      "El proyecto está en pleno desarrollo."}
+                    {organizationData?.totalProgress >= 75 &&
+                      organizationData?.totalProgress < 100 &&
+                      "El proyecto está cerca de completarse."}
+                    {organizationData?.totalProgress === 100 &&
+                      "¡El proyecto ha sido completado!"}
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
       </motion.div>
-    );
-  }
-  return (
-    <motion.div initial="hidden" animate="visible" variants={containerVariants}>
-      <DashboardStructure>
-        <DashboardTitle
-          title={`👋 Hola, ${toCapitalize(data?.user?.username)}.`}
-        />
-        <motion.div
-          className="grid grid-cols-1 md:grid-cols-4 mt-10 space-x-0 space-y-4 md:space-x-16 md:space-y-0"
-          initial="hidden"
-          animate="visible"
-          variants={containerVariants}
-        >
-          {[
-            { name: "Tareas totales", value: totalTasks, slug: "tasks" },
-            {
-              name: "Tareas completadas",
-              value: completedTasks,
-              slug: "tasks",
-            },
-            { name: "Tareas pendientes", value: pendingTasks, slug: "tasks" },
-            { name: "Miembros", value: totalMembers, slug: "members" },
-          ].map((info, index) => (
-            <motion.div key={index} variants={itemVariants}>
-              <InfoTask name={info.name} value={info.value} slug={info.slug} />
-            </motion.div>
-          ))}
-        </motion.div>
-        <motion.div
-          initial="hidden"
-          animate="visible"
-          variants={containerVariants}
-          className="mt-10"
-        >
-          <MonthlyChart />
-        </motion.div>
-      </DashboardStructure>
-    </motion.div>
+    </DashboardStructure>
   );
 }

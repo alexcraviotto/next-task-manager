@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Pencil, Plus, Save, Trash2, Loader2 } from "lucide-react";
+import { Pencil, Plus, Save, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -26,23 +26,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useMembers } from "@/hooks/use-members";
+import { Member } from "@/lib/types";
 
-interface Member {
-  id: number;
-  username: string;
-  email: string;
-  isAdmin: boolean;
-  createdAt: string;
-  updatedAt: string;
-  weight: number;
+interface MembersTableProps {
+  members: Member[];
+  onAddMember: (
+    member: Omit<Member, "id" | "createdAt" | "updatedAt">,
+  ) => Promise<void>;
+  onUpdateMember: (id: number, member: Partial<Member>) => Promise<void>;
+  onDeleteMember: (id: number) => Promise<void>;
 }
 
-export function MembersTable({ organizationId }: { organizationId: string }) {
+export function MembersTable({
+  members,
+  onAddMember,
+  onUpdateMember,
+  onDeleteMember,
+}: MembersTableProps) {
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const { members, isLoading, error, addMember, updateMember, deleteMember } =
-    useMembers(organizationId);
 
   const handleEditMember = (member: Member) => {
     setEditingMember(member);
@@ -54,9 +56,9 @@ export function MembersTable({ organizationId }: { organizationId: string }) {
 
     try {
       if (editingMember.id === -1) {
-        await addMember(editingMember);
+        await onAddMember(editingMember);
       } else {
-        await updateMember(editingMember.id, editingMember);
+        await onUpdateMember(editingMember.id, editingMember);
       }
 
       setEditingMember(null);
@@ -82,25 +84,11 @@ export function MembersTable({ organizationId }: { organizationId: string }) {
 
   const handleDeleteMember = async (memberId: number) => {
     try {
-      await deleteMember(memberId);
+      await onDeleteMember(memberId);
     } catch (error) {
       console.error("Error deleting member:", error);
     }
   };
-
-  if (isLoading) {
-    return (
-      <div className="w-full h-48 flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="w-full p-4 text-center text-red-500">Error: {error}</div>
-    );
-  }
 
   return (
     <div className="w-full space-y-4 mt-10 relative">

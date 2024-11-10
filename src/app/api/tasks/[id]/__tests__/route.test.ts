@@ -109,6 +109,95 @@ describe("Task Routes", () => {
       expect(response.status).toBe(400);
       expect(data.error).toBe("Invalid data");
     });
+
+    it("should return 400 if progress is less than 0", async () => {
+      const mockSession = { user: { id: "1" } };
+      (getServerSession as jest.Mock).mockResolvedValueOnce(mockSession);
+
+      const req = new Request("http://localhost:3001/api/tasks/1", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Task",
+          description: "Description",
+          type: "Task",
+          startDate: "2024-11-05",
+          endDate: "2024-11-06",
+          progress: -1,
+        }),
+      }) as unknown as NextRequest;
+
+      const response = await PUT(req, { params: { id: "1" } });
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBe("Progress must be between 0 and 100");
+    });
+
+    it("should return 400 if progress is greater than 100", async () => {
+      const mockSession = { user: { id: "1" } };
+      (getServerSession as jest.Mock).mockResolvedValueOnce(mockSession);
+
+      const req = new Request("http://localhost:3001/api/tasks/1", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Task",
+          description: "Description",
+          type: "Task",
+          startDate: "2024-11-05",
+          endDate: "2024-11-06",
+          progress: 101,
+        }),
+      }) as unknown as NextRequest;
+
+      const response = await PUT(req, { params: { id: "1" } });
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBe("Progress must be between 0 and 100");
+    });
+
+    it("should update task with valid progress value", async () => {
+      const mockSession = { user: { id: "1" } };
+      (getServerSession as jest.Mock).mockResolvedValueOnce(mockSession);
+
+      const mockTask = {
+        id: 1,
+        name: "Old Task",
+        description: "Old Description",
+        type: "Task",
+        startDate: new Date("2024-11-01"),
+        endDate: new Date("2024-11-02"),
+        progress: 50,
+        createdById: 1,
+      };
+
+      (prisma.task.findUnique as jest.Mock).mockResolvedValueOnce(mockTask);
+      (prisma.task.update as jest.Mock).mockResolvedValueOnce({
+        ...mockTask,
+        progress: 75,
+      });
+
+      const req = new Request("http://localhost:3001/api/tasks/1", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Task",
+          description: "Description",
+          type: "Task",
+          startDate: "2024-11-05",
+          endDate: "2024-11-06",
+          progress: 75,
+        }),
+      }) as unknown as NextRequest;
+
+      const response = await PUT(req, { params: { id: "1" } });
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.task.progress).toBe(75);
+    });
   });
 
   describe("DELETE /api/tasks/:id", () => {
