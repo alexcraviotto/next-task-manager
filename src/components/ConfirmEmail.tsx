@@ -9,8 +9,10 @@ import {
   InputOTPGroup,
   InputOTPSlot,
 } from "@/components/ui/input-otp";
+import { useSession } from "next-auth/react"; // Importar hook para la sesión
 
 export default function ConfirmEmail() {
+  const { data: session } = useSession(); // Usar el hook useSession para obtener la sesión
   const [showOTP, setShowOTP] = useState(false);
   const [otp, setOtp] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
@@ -20,41 +22,102 @@ export default function ConfirmEmail() {
   // Función para obtener OTP del servidor
   const fetchOtp = async () => {
     try {
+      if (!session?.user?.email) {
+        setErrorMessage("No se encontró el correo en la sesión.");
+        console.log("Error: No se encontró el correo en la sesión.");
+        return;
+      }
+
+      console.log("Intentando obtener OTP para el correo:", session.user.email);
+
       const response = await fetch("/api/users/verify-email", {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email: "user@example.com" }), // Reemplaza por el email del usuario
       });
 
       const data = await response.json();
+      console.log("Respuesta del servidor al obtener OTP:", data);
 
       if (response.ok) {
         setOtpFromServer(data.otp); // Guardar OTP recibido
+        console.log("OTP recibido del servidor:", data.otp);
       } else {
         setErrorMessage(data.message || "Error al obtener el OTP");
+        console.log(
+          "Error al obtener OTP:",
+          data.message || "Error desconocido",
+        );
       }
-    } catch {
+    } catch (error) {
       setErrorMessage("Error de conexión. Inténtalo de nuevo.");
+      console.log("Error de conexión al obtener OTP:", error);
     }
   };
 
   useEffect(() => {
-    if (!showOTP) {
+    if (!showOTP && session?.user?.email) {
+      console.log(
+        "Iniciando fetchOtp, showOTP es falso y hay sesión con email.",
+      );
       fetchOtp(); // Solo se realiza la llamada a la API cuando se muestra OTP
     }
-  }, [showOTP]);
+  }, [showOTP, session?.user?.email]); // Dependencia en el correo de la sesión
 
-  const handleContinueClick = () => {
+  const handleContinueClick = async () => {
+    console.log("Botón 'Continuar' presionado, estado showOTP:", showOTP);
     if (showOTP) {
+      console.log(
+        "Comparando OTP ingresado:",
+        otp,
+        "con OTP del servidor:",
+        otpFromServer,
+      );
       if (otp === otpFromServer) {
-        router.push("/success"); // Redirige a la pagina de éxito
+        // Verificación exitosa del OTP, se llama a la API para actualizar el estado del usuario
+        if (session?.user?.email) {
+          // Verificación de que session y session.user no sean null
+          try {
+            const response = await fetch("/api/users/verify-email", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                email: session.user.email, // Aquí ya podemos usarlo sin error
+                otpCode: otp,
+              }),
+            });
+
+            const data = await response.json();
+            console.log("Respuesta de verificación de email:", data);
+
+            if (response.ok) {
+              //router.push("/dashboard/organization"); // Redirige a la pagina de dashboard/organization
+              window.location.href = "/dashboard/organization";
+            } else {
+              setErrorMessage(data.message || "Error al verificar el email.");
+              console.log(
+                "Error al verificar email:",
+                data.message || "Error desconocido",
+              );
+            }
+          } catch (error) {
+            setErrorMessage("Error de conexión. Inténtalo de nuevo.");
+            console.log("Error de conexión al verificar el email:", error);
+          }
+        } else {
+          setErrorMessage("No se encontró el correo en la sesión.");
+          console.log("No se encontró el correo en la sesión.");
+        }
       } else {
         setErrorMessage("El código introducido no es válido.");
+        console.log("El código introducido no es válido.");
       }
     } else {
       setShowOTP(true); // Muestra el OTP si no se ha mostrado aún
+      console.log("showOTP se establece en true, OTP visible para el usuario.");
     }
   };
 
@@ -62,6 +125,7 @@ export default function ConfirmEmail() {
   const handleClearOTP = () => {
     setOtp(""); // Limpia el estado del OTP
     setErrorMessage("");
+    console.log("OTP y mensaje de error limpiados.");
   };
 
   return (
@@ -93,7 +157,10 @@ export default function ConfirmEmail() {
                 value={otp}
                 maxLength={6}
                 pattern={"^[0-9]*$"} // Acepta solo números
-                onChange={(e) => setOtp(e)} // Cambia aquí
+                onChange={(e) => {
+                  setOtp(e);
+                  console.log("OTP ingresado:", e);
+                }} // Cambia aquí
               >
                 <InputOTPGroup>
                   <InputOTPSlot index={0} />
