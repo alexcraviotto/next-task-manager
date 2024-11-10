@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -14,24 +14,51 @@ export default function ConfirmEmail() {
   const [showOTP, setShowOTP] = useState(false);
   const [otp, setOtp] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [otpFromServer, setOtpFromServer] = useState<string | null>(null);
   const router = useRouter();
 
-  // Define el OTP correcto para fines de prueba
-  const correctOTP = "123456";
+  // Función para obtener OTP del servidor
+  const fetchOtp = async () => {
+    try {
+      const response = await fetch("/api/users/verify-email", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email: "user@example.com" }), // Reemplaza por el email del usuario
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setOtpFromServer(data.otp); // Guardar OTP recibido
+      } else {
+        setErrorMessage(data.message || "Error al obtener el OTP");
+      }
+    } catch {
+      setErrorMessage("Error de conexión. Inténtalo de nuevo.");
+    }
+  };
+
+  useEffect(() => {
+    if (!showOTP) {
+      fetchOtp(); // Solo se realiza la llamada a la API cuando se muestra OTP
+    }
+  }, [showOTP]);
 
   const handleContinueClick = () => {
     if (showOTP) {
-      if (otp === correctOTP) {
-        router.push("/success"); // Redirige a la pagina de exito
+      if (otp === otpFromServer) {
+        router.push("/success"); // Redirige a la pagina de éxito
       } else {
         setErrorMessage("El código introducido no es válido.");
       }
     } else {
-      setShowOTP(true); // Muestra el OTP si no se ha mostrado aun
+      setShowOTP(true); // Muestra el OTP si no se ha mostrado aún
     }
   };
 
-  // Funcion para limpiar el campo OTP
+  // Función para limpiar el campo OTP
   const handleClearOTP = () => {
     setOtp(""); // Limpia el estado del OTP
     setErrorMessage("");
@@ -65,8 +92,8 @@ export default function ConfirmEmail() {
               <InputOTP
                 value={otp}
                 maxLength={6}
-                pattern={"^[0-9]*$"} // Acepta solo numeros
-                onChange={(e) => setOtp(e)} // Cambia aqui
+                pattern={"^[0-9]*$"} // Acepta solo números
+                onChange={(e) => setOtp(e)} // Cambia aquí
               >
                 <InputOTPGroup>
                   <InputOTPSlot index={0} />
@@ -98,7 +125,7 @@ export default function ConfirmEmail() {
         </Button>
         <Button
           className="w-full bg-white text-black border border-gray-300 hover:bg-gray-100"
-          onClick={() => router.back()} // Accion para volver a la pagina anterior
+          onClick={() => router.back()} // Acción para volver a la página anterior
         >
           Volver
         </Button>
