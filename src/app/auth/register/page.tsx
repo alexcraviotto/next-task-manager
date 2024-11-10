@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { z } from "zod";
 import { signIn } from "next-auth/react";
 
-// Schema de validación
+// Schema de validacion
 const registerSchema = z.object({
   username: z
     .string()
@@ -28,6 +28,7 @@ export default function RegisterForm() {
   const [surname, setSurname] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -50,7 +51,7 @@ export default function RegisterForm() {
         throw new Error(data.message || "Error al registrarse");
       }
 
-      // 2. Iniciar sesión automáticamente después del registro
+      // 2. Iniciar sesion automaticamente despues del registro
       const result = await signIn("credentials", {
         redirect: false,
         email: validatedData.email,
@@ -67,8 +68,8 @@ export default function RegisterForm() {
           "Tu cuenta ha sido creada y has iniciado sesión correctamente",
       });
 
-      // Use replace instead of push
-      await router.replace("/dashboard/organization");
+      // Redirigir a la pagina de confirmacion de correo electronico (ConfirmEmail)
+      await router.replace("/auth/confirm-email"); // Cambiamos la ruta
     } catch (error) {
       if (error instanceof z.ZodError) {
         toast({

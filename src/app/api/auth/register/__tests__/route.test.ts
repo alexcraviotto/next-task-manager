@@ -11,6 +11,9 @@ const prismaClientMock = {
     findUnique: jest.fn(),
     create: jest.fn(),
   },
+  oTP: {
+    create: jest.fn(),
+  },
 };
 
 jest.mock("@prisma/client", () => ({
@@ -37,15 +40,25 @@ describe("POST /api/auth/register", () => {
 
   const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3001";
 
-  it("should successfully create a new user", async () => {
+  it("should successfully create a new user and save the OTP code", async () => {
     const userData = {
       username: "testuser",
       email: "test@example.com",
       password: "password123",
     };
 
+    const confirmationCode = "123456"; // Simula el código OTP generado
+    const expirationDate = new Date("2025-02-01T00:00:00Z");
+
     prismaClientMock.user.findUnique.mockResolvedValueOnce(null);
     prismaClientMock.user.create.mockResolvedValueOnce({ id: 1, ...userData });
+    prismaClientMock.oTP.create.mockResolvedValueOnce({
+      code: confirmationCode,
+      email: userData.email,
+      isUsed: false,
+      expiresAt: expirationDate,
+      userId: 1,
+    });
 
     const req = new Request(`${baseUrl}/api/auth/register`, {
       method: "POST",
@@ -62,7 +75,7 @@ describe("POST /api/auth/register", () => {
     expect(response.status).toBe(201);
     expect(data).toEqual({ message: "Created, welcome :)" });
 
-    // Verifica que se haya llamado a la función sendMail para enviar el correo
+    // Verifica que se haya llamado a la funcion sendMail para enviar el correo
     const transport = nodemailer.createTransport(); // Obtiene la instancia mockeada
     expect(transport.sendMail).toHaveBeenCalledTimes(1); // llamada exactamente una vez
     expect(transport.sendMail).toHaveBeenCalledWith(
@@ -70,8 +83,23 @@ describe("POST /api/auth/register", () => {
         from: "nexttaskmanager@gmail.com",
         to: userData.email,
         subject: "Confirmación de Registro",
+        text: expect.stringContaining(
+          "Hola testuser, tu codigo de confirmación es:",
+        ), // Agrega el cuerpo del mensaje
       }),
     );
+
+    // Verifica que el OTP se haya guardado en la base de datos con la fecha correcta
+    expect(prismaClientMock.oTP.create).toHaveBeenCalledTimes(1);
+    expect(prismaClientMock.oTP.create).toHaveBeenCalledWith({
+      data: {
+        code: expect.any(String),
+        email: userData.email,
+        isUsed: false,
+        expiresAt: expirationDate,
+        userId: 1,
+      },
+    });
   });
 
   it("should return 400 if required fields are missing", async () => {
@@ -95,6 +123,7 @@ describe("POST /api/auth/register", () => {
     expect(data).toEqual({ message: "Invalid parameters" });
     expect(prismaClientMock.user.findUnique).not.toHaveBeenCalled();
     expect(prismaClientMock.user.create).not.toHaveBeenCalled();
+    expect(prismaClientMock.oTP.create).not.toHaveBeenCalled();
     expect(nodemailer.createTransport().sendMail).not.toHaveBeenCalled();
   });
 
@@ -127,6 +156,7 @@ describe("POST /api/auth/register", () => {
       where: { email: userData.email },
     });
     expect(prismaClientMock.user.create).not.toHaveBeenCalled();
+    expect(prismaClientMock.oTP.create).not.toHaveBeenCalled();
     expect(nodemailer.createTransport().sendMail).not.toHaveBeenCalled();
   });
 
@@ -155,6 +185,8 @@ describe("POST /api/auth/register", () => {
     expect(response.status).toBe(500);
     expect(data).toEqual({ message: "Internal Server Error" });
     expect(prismaClientMock.user.findUnique).toHaveBeenCalled();
+    expect(prismaClientMock.user.create).not.toHaveBeenCalled();
+    expect(prismaClientMock.oTP.create).not.toHaveBeenCalled();
     expect(nodemailer.createTransport().sendMail).not.toHaveBeenCalled();
   });
 });
