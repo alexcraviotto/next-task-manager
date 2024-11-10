@@ -402,7 +402,10 @@ export function TaskTable({ projectId }: { projectId: string }) {
                     editingTask
                       ? {
                           ...editingTask,
-                          weight: Number(e.target.value),
+                          weight: Math.min(
+                            5,
+                            Math.max(0, Number(e.target.value)),
+                          ),
                         }
                       : null,
                   )

@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Pencil, Plus, Save, Trash2 } from "lucide-react";
+import { Pencil, Plus, Save, Trash2, Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -26,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useMembers } from "@/hooks/use-members";
 
 interface Member {
   id: number;
@@ -38,51 +39,36 @@ interface Member {
 }
 
 export function MembersTable({ organizationId }: { organizationId: string }) {
-  console.log(organizationId);
-  const [members, setMembers] = useState<Member[]>([
-    {
-      id: 1,
-      username: "usuario1",
-      email: "usuario1@ejemplo.com",
-      isAdmin: true,
-      createdAt: "2024-01-01",
-      updatedAt: "2024-01-01",
-      weight: 0,
-    },
-    {
-      id: 2,
-      username: "usuario2",
-      email: "usuario2@ejemplo.com",
-      isAdmin: false,
-      createdAt: "2024-01-02",
-      updatedAt: "2024-01-02",
-      weight: 0,
-    },
-  ]);
-
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const { members, isLoading, error, addMember, updateMember, deleteMember } =
+    useMembers(organizationId);
 
   const handleEditMember = (member: Member) => {
     setEditingMember(member);
     setIsDialogOpen(true);
   };
 
-  const handleUpdateMember = () => {
-    if (editingMember) {
-      setMembers(
-        members.map((member) =>
-          member.id === editingMember.id ? editingMember : member,
-        ),
-      );
+  const handleSaveMember = async () => {
+    if (!editingMember) return;
+
+    try {
+      if (editingMember.id === -1) {
+        await addMember(editingMember);
+      } else {
+        await updateMember(editingMember.id, editingMember);
+      }
+
       setEditingMember(null);
       setIsDialogOpen(false);
+    } catch (error) {
+      console.error("Error saving member:", error);
     }
   };
 
   const handleAddMember = () => {
     const newMember: Member = {
-      id: members.length + 1,
+      id: -1,
       username: "",
       email: "",
       isAdmin: false,
@@ -94,21 +80,27 @@ export function MembersTable({ organizationId }: { organizationId: string }) {
     setIsDialogOpen(true);
   };
 
-  const handleSaveMember = () => {
-    if (editingMember) {
-      if (editingMember.id > members.length) {
-        setMembers([...members, editingMember]);
-      } else {
-        handleUpdateMember();
-      }
-      setEditingMember(null);
-      setIsDialogOpen(false);
+  const handleDeleteMember = async (memberId: number) => {
+    try {
+      await deleteMember(memberId);
+    } catch (error) {
+      console.error("Error deleting member:", error);
     }
   };
 
-  const handleDeleteMember = (memberId: number) => {
-    setMembers(members.filter((member) => member.id !== memberId));
-  };
+  if (isLoading) {
+    return (
+      <div className="w-full h-48 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="w-full p-4 text-center text-red-500">Error: {error}</div>
+    );
+  }
 
   return (
     <div className="w-full space-y-4 mt-10 relative">
@@ -276,12 +268,17 @@ export function MembersTable({ organizationId }: { organizationId: string }) {
                 id="weight"
                 type="number"
                 value={editingMember?.weight || 0}
+                min={0}
+                max={5}
                 onChange={(e) =>
                   setEditingMember(
                     editingMember
                       ? {
                           ...editingMember,
-                          weight: parseInt(e.target.value),
+                          weight: Math.min(
+                            5,
+                            Math.max(0, parseInt(e.target.value)),
+                          ),
                         }
                       : null,
                   )
