@@ -30,15 +30,19 @@ export async function GET() {
       },
     });
 
-    if (!user || user.otps.length === 0) {
+    if (!user) {
+      return NextResponse.json({ message: "User not found" }, { status: 404 });
+    }
+
+    // Verificar si el usuario ha confirmado su correo
+    if (!user.isVerified) {
       return NextResponse.json(
-        { message: "No valid OTP found for this email" },
-        { status: 404 },
+        { verified: false, otp: user.otps[0]?.code },
+        { status: 200 },
       );
     }
 
-    const otpRecord = user.otps[0];
-    return NextResponse.json({ otp: otpRecord.code }, { status: 200 });
+    return NextResponse.json({ verified: true }, { status: 200 });
   } catch (error) {
     console.error("Error retrieving OTP:", error);
     return NextResponse.json(

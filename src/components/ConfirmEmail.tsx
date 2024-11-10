@@ -96,6 +96,7 @@ export default function ConfirmEmail() {
             if (response.ok) {
               //router.push("/dashboard/organization"); // Redirige a la pagina de dashboard/organization
               window.location.href = "/dashboard/organization";
+              //router.replace("/dashboard/organization")
             } else {
               setErrorMessage(data.message || "Error al verificar el email.");
               console.log(
