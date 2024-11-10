@@ -25,7 +25,16 @@ export default function Gantt({
 
     gantt.config.date_format = "%Y-%m-%d %H:%i";
 
-    // Initialize Gantt
+    gantt.config.readonly = true;
+    gantt.config.drag_links = false;
+    gantt.config.drag_tasks = false;
+    gantt.config.resize_tasks = false;
+    gantt.config.disable_task_add = true;
+    gantt.config.disable_link_add = true;
+
+    gantt.config.toolbar = false;
+
+    // Inicializa Gantt
     gantt.init(ganttContainer.current);
     gantt.parse(tasks);
 
