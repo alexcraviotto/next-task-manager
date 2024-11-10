@@ -1,13 +1,13 @@
 "use client";
 import { Task } from "@/lib/types";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 export function useTasks(organizationId: string) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchTasks = async () => {
+  const fetchTasks = useCallback(async () => {
     try {
       setIsLoading(true);
       const response = await fetch(`/api/organizations?id=${organizationId}`);
@@ -21,11 +21,11 @@ export function useTasks(organizationId: string) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [organizationId, setIsLoading, setTasks, setError]);
 
   useEffect(() => {
     fetchTasks();
-  }, [organizationId]);
+  }, [fetchTasks]);
 
   const addTask = async (newTask: Omit<Task, "id">) => {
     if (newTask.weight < 0 || newTask.weight > 5) {
