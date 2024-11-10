@@ -16,15 +16,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
-  const { name, description, type, startDate, endDate, organizationId } =
-    await req.json();
+  const {
+    name,
+    description,
+    type,
+    progress,
+    startDate,
+    endDate,
+    organizationId,
+  } = await req.json();
   if (
     !name ||
     !description ||
     !type ||
     !startDate ||
     !endDate ||
-    !organizationId
+    !organizationId ||
+    !progress
   ) {
     console.log(name, description, type, startDate, endDate, organizationId);
     console.log("Invalid parameters");
@@ -49,7 +57,7 @@ export async function POST(req: NextRequest) {
         endDate: new Date(endDate),
         organizationId,
         createdById: userId,
-        progress: 0,
+        progress,
       },
     });
     return NextResponse.json({ task: newTask }, { status: 200 });

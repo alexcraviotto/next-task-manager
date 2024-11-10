@@ -1,9 +1,7 @@
 /**
  * @jest-environment node
  */
-import "dotenv/config";
 
-import { NextRequest } from "next/server";
 const prismaClientMock = {
   user: {
     findUnique: jest.fn(),
@@ -20,14 +18,18 @@ const prismaClientMock = {
   },
 };
 
-jest.mock("@prisma/client", () => ({
-  PrismaClient: jest.fn(() => prismaClientMock),
-}));
+import "dotenv/config";
+import { NextRequest } from "next/server";
 import { GET, POST } from "../route";
 import { getServerSession } from "next-auth/next";
 import { Session } from "next-auth";
 
 jest.mock("next-auth/next");
+
+// Después, usa prismaClientMock en el mock
+jest.mock("@prisma/client", () => ({
+  PrismaClient: jest.fn(() => prismaClientMock),
+}));
 
 describe("POST /api/organizations", () => {
   let req: NextRequest;
@@ -56,18 +58,14 @@ describe("POST /api/organizations", () => {
 
   it("should return 401 if user is not authenticated", async () => {
     (getServerSession as jest.Mock).mockResolvedValueOnce(null);
-
     const res = await POST(req);
-
     expect(res.status).toBe(401);
     expect(await res.json()).toEqual({ message: "Unauthorized" });
   });
 
   it("should return 400 if name is not provided", async () => {
     (req.json as jest.Mock).mockResolvedValueOnce({});
-
     const res = await POST(req);
-
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ message: "Name is required" });
   });
@@ -76,10 +74,9 @@ describe("POST /api/organizations", () => {
     (req.json as jest.Mock).mockResolvedValueOnce({
       name: "New Organization",
     });
-    (prismaClientMock.user.findUnique as jest.Mock).mockResolvedValueOnce(null);
+    prismaClientMock.user.findUnique.mockResolvedValueOnce(null);
 
     const res = await POST(req);
-
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({ message: "User not found" });
   });
@@ -88,17 +85,12 @@ describe("POST /api/organizations", () => {
     (req.json as jest.Mock).mockResolvedValueOnce({
       name: "Existing Organization",
     });
-    (prismaClientMock.user.findUnique as jest.Mock).mockResolvedValueOnce({
-      id: 1,
-    });
-    (
-      prismaClientMock.organization.findUnique as jest.Mock
-    ).mockResolvedValueOnce({
+    prismaClientMock.user.findUnique.mockResolvedValueOnce({ id: 1 });
+    prismaClientMock.organization.findUnique.mockResolvedValueOnce({
       name: "Existing Organization",
     });
 
     const res = await POST(req);
-
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ message: "Name exists" });
   });
@@ -107,12 +99,8 @@ describe("POST /api/organizations", () => {
     (req.json as jest.Mock).mockResolvedValueOnce({
       name: "New Organization",
     });
-    (prismaClientMock.user.findUnique as jest.Mock).mockResolvedValueOnce({
-      id: 1,
-    });
-    (
-      prismaClientMock.organization.findUnique as jest.Mock
-    ).mockResolvedValueOnce(null);
+    prismaClientMock.user.findUnique.mockResolvedValueOnce({ id: 1 });
+    prismaClientMock.organization.findUnique.mockResolvedValueOnce(null);
     prismaClientMock.organization.create.mockImplementationOnce(() =>
       Promise.resolve({
         id: 1,
@@ -121,7 +109,6 @@ describe("POST /api/organizations", () => {
     );
 
     const res = await POST(req);
-
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({
       message: "Success",
@@ -129,15 +116,13 @@ describe("POST /api/organizations", () => {
     });
   });
 
-  it("should return 400 if member weight is out of range", async () => {
+  it("should return 400 if weight is out of range", async () => {
     (req.json as jest.Mock).mockResolvedValueOnce({
       name: "New Organization",
-      weight: 6, // Using weight instead of memberWeight
+      weight: 6,
     });
 
-    // No need to mock user here since we want the weight validation to trigger first
     const res = await POST(req);
-
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({
       message: "Weight must be between 0 and 5",
@@ -164,6 +149,9 @@ describe("GET /api/organizations", () => {
     };
 
     (getServerSession as jest.Mock).mockResolvedValue(session);
+  });
+
+  afterEach(() => {
     jest.clearAllMocks();
   });
 
@@ -174,26 +162,38 @@ describe("GET /api/organizations", () => {
     expect(await res.json()).toEqual({ message: "Unauthorized" });
   });
 
-  it("should return organization with tasks if valid id is provided", async () => {
+  it("should return organization with calculated progress if valid id is provided", async () => {
     const mockUser = {
       id: 1,
       email: "test@example.com",
       username: "test",
     };
 
+    const mockTasks = [
+      {
+        id: 1,
+        name: "Test Task 1",
+        progress: 100,
+        createdBy: mockUser,
+        taskRatings: [],
+        dependencies: [],
+        dependentOn: [],
+      },
+      {
+        id: 2,
+        name: "Test Task 2",
+        progress: 50,
+        createdBy: mockUser,
+        taskRatings: [],
+        dependencies: [],
+        dependentOn: [],
+      },
+    ];
+
     const mockOrganization = {
       id: "org-123",
       name: "Test Org",
-      tasks: [
-        {
-          id: 1,
-          name: "Test Task",
-          createdBy: mockUser,
-          taskRatings: [],
-          dependencies: [],
-          dependentOn: [],
-        },
-      ],
+      tasks: mockTasks,
       users: [
         {
           User: mockUser,
@@ -214,20 +214,35 @@ describe("GET /api/organizations", () => {
     const data = await res.json();
 
     expect(res.status).toBe(200);
-    expect(data).toEqual(mockOrganization);
-    expect(data).toHaveProperty("tasks");
-    expect(data.id).toBe("org-123");
+    expect(data).toHaveProperty("totalProgress");
+    expect(data).toHaveProperty("totalTasks");
+    expect(data).toHaveProperty("completedTasks");
+    expect(data).toHaveProperty("inProgressTasks");
+    expect(data).toHaveProperty("pendingTasks");
+    expect(data.totalProgress).toBe(75);
+    expect(data.totalTasks).toBe(2);
+    expect(data.completedTasks).toBe(1);
+    expect(data.inProgressTasks).toBe(1);
+    expect(data.pendingTasks).toBe(0);
   });
 
-  it("should return all organizations when no id is provided", async () => {
+  it("should return organizations with calculated progress when no id is provided", async () => {
     const mockUser = {
       id: 1,
       email: "test@example.com",
     };
 
     const mockOrganizations = [
-      { id: "1", name: "Org 1" },
-      { id: "2", name: "Org 2" },
+      {
+        id: "1",
+        name: "Org 1",
+        tasks: [{ progress: 100 }, { progress: 50 }],
+      },
+      {
+        id: "2",
+        name: "Org 2",
+        tasks: [{ progress: 0 }, { progress: 100 }],
+      },
     ];
 
     prismaClientMock.user.findUnique.mockResolvedValueOnce(mockUser);
@@ -236,8 +251,27 @@ describe("GET /api/organizations", () => {
     );
 
     const res = await GET(req);
+    const data = await res.json();
+
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual(mockOrganizations);
+    expect(data).toHaveLength(2);
+    expect(data[0]).toHaveProperty("totalProgress");
+    expect(data[0]).toHaveProperty("totalTasks");
+    expect(data[0]).toHaveProperty("completedTasks");
+    expect(data[0]).toHaveProperty("inProgressTasks");
+    expect(data[0]).toHaveProperty("pendingTasks");
+
+    expect(data[0].totalProgress).toBe(75);
+    expect(data[0].totalTasks).toBe(2);
+    expect(data[0].completedTasks).toBe(1);
+    expect(data[0].inProgressTasks).toBe(1);
+    expect(data[0].pendingTasks).toBe(0);
+
+    expect(data[1].totalProgress).toBe(50);
+    expect(data[1].totalTasks).toBe(2);
+    expect(data[1].completedTasks).toBe(1);
+    expect(data[1].inProgressTasks).toBe(0);
+    expect(data[1].pendingTasks).toBe(1);
   });
 
   it("should return 404 if organization is not found", async () => {
@@ -256,6 +290,14 @@ describe("GET /api/organizations", () => {
     const res = await GET(req);
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({ message: "Organization not found" });
+  });
+
+  it("should return 404 if user is not found", async () => {
+    prismaClientMock.user.findUnique.mockResolvedValueOnce(null);
+
+    const res = await GET(req);
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ message: "User not found" });
   });
 
   it("should return 500 on internal server error", async () => {

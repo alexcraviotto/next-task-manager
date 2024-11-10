@@ -144,7 +144,29 @@ export async function GET(req: NextRequest) {
         );
       }
 
-      return NextResponse.json(organization);
+      // Cálculo del progreso total
+      let totalProgress = 0;
+      const tasks = organization.tasks;
+
+      if (tasks.length > 0) {
+        // Suma todos los progresos y divide por el número total de tareas
+        totalProgress =
+          tasks.reduce((sum, task) => sum + task.progress, 0) / tasks.length;
+      }
+
+      // Crear un objeto con la información de la organización y el progreso total
+      const organizationWithProgress = {
+        ...organization,
+        totalProgress: parseFloat(totalProgress.toFixed(2)), // Redondear a 2 decimales
+        totalTasks: tasks.length,
+        completedTasks: tasks.filter((task) => task.progress === 100).length,
+        inProgressTasks: tasks.filter(
+          (task) => task.progress > 0 && task.progress < 100,
+        ).length,
+        pendingTasks: tasks.filter((task) => task.progress === 0).length,
+      };
+
+      return NextResponse.json(organizationWithProgress);
     } else {
       const organizations = await prisma.organization.findMany({
         where: {
@@ -154,8 +176,36 @@ export async function GET(req: NextRequest) {
             },
           },
         },
+        include: {
+          tasks: true, // Incluir tareas para calcular el progreso
+        },
       });
-      return NextResponse.json(organizations);
+
+      // Calcular el progreso para cada organización
+      const organizationsWithProgress = organizations.map((org) => {
+        let totalProgress = 0;
+        if (org.tasks.length > 0) {
+          console.log(org.tasks);
+          totalProgress =
+            org.tasks.reduce((sum, task) => sum + task.progress, 0) /
+            org.tasks.length;
+          console.log(totalProgress);
+        }
+
+        return {
+          ...org,
+          totalProgress: parseFloat(totalProgress.toFixed(2)),
+          totalTasks: org.tasks.length,
+          completedTasks: org.tasks.filter((task) => task.progress === 100)
+            .length,
+          inProgressTasks: org.tasks.filter(
+            (task) => task.progress > 0 && task.progress < 100,
+          ).length,
+          pendingTasks: org.tasks.filter((task) => task.progress === 0).length,
+        };
+      });
+
+      return NextResponse.json(organizationsWithProgress);
     }
   } catch (error) {
     console.error("Error fetching organizations:", error);
