@@ -14,10 +14,18 @@ export async function PUT(
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
-  const { name, description, type, startDate, endDate } = await req.json();
+  const { name, description, type, startDate, endDate, progress } =
+    await req.json();
 
   if (!name || !description || !type || !startDate || !endDate) {
     return NextResponse.json({ error: "Invalid data" }, { status: 400 });
+  }
+
+  if (progress < 0 || progress > 100) {
+    return NextResponse.json(
+      { error: "Progress must be between 0 and 100" },
+      { status: 400 },
+    );
   }
 
   try {
@@ -37,6 +45,7 @@ export async function PUT(
         name,
         description,
         type,
+        progress,
         startDate: new Date(startDate),
         endDate: new Date(endDate),
       },

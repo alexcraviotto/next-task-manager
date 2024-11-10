@@ -15,7 +15,6 @@ export const metadata: Metadata = {
 function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen">
-      c
       <div className="hidden md:block md:w-1/2 relative">
         <Image
           src="/background-grey.png"

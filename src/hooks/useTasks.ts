@@ -1,18 +1,6 @@
 "use client";
+import { Task } from "@/lib/types";
 import { useState, useEffect } from "react";
-
-interface Task {
-  id: number;
-  name: string;
-  description: string;
-  type: string;
-  startDate: string;
-  endDate: string;
-  progress: number;
-  dependencies: number;
-  weight: number;
-  organizationId: string;
-}
 
 export function useTasks(organizationId: string) {
   const [tasks, setTasks] = useState<Task[]>([]);
