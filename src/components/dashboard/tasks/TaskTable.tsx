@@ -27,7 +27,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useTasks } from "@/hooks/useTasks";
-import { Loader2 } from "lucide-react";
 
 interface Task {
   id: number;
@@ -62,8 +61,7 @@ const parseInputDate = (dateString: string): string => {
 export function TaskTable({ projectId }: { projectId: string }) {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const { tasks, isLoading, error, addTask, updateTask, deleteTask } =
-    useTasks(projectId);
+  const { tasks, error, addTask, updateTask, deleteTask } = useTasks(projectId);
 
   const handleAddTask = () => {
     const today = new Date().toISOString();
@@ -110,14 +108,6 @@ export function TaskTable({ projectId }: { projectId: string }) {
       console.error("Error deleting task:", error);
     }
   };
-
-  if (isLoading) {
-    return (
-      <div className="w-full h-48 flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
-  }
 
   if (error) {
     return (

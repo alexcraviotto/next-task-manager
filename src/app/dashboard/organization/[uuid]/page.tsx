@@ -4,15 +4,25 @@ import { DashboardStructure } from "@/components/dashboard/DashboardStructure";
 import { DashboardTitle } from "@/components/dashboard/DashboardTitle";
 import { InfoTask } from "@/components/dashboard/home/InfoTask";
 import MonthlyChart from "@/components/dashboard/home/MonthlyChart";
-import { Loader2 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useTasks } from "@/hooks/useTasks";
+import { useMembers } from "@/hooks/use-members";
+import { DashboardSkeleton } from "@/components/DashboardSkeleton";
 
 export default function Dashboard({ params }: { params: { uuid: string } }) {
   const router = useRouter();
   const { data } = useSession();
   const [loading, setLoading] = useState(true);
+  const { tasks, isLoading: tasksLoading } = useTasks(params.uuid);
+  const { members, isLoading: membersLoading } = useMembers(params.uuid);
+
+  // Calculate task statistics
+  const totalTasks = tasks.length;
+  const completedTasks = tasks.filter((task) => task.progress === 100).length;
+  const pendingTasks = tasks.filter((task) => task.progress < 100).length;
+  const totalMembers = members.length;
 
   useEffect(() => {
     const fetchOrganization = async () => {
@@ -36,12 +46,10 @@ export default function Dashboard({ params }: { params: { uuid: string } }) {
     }
   }, [params.uuid, router]);
 
-  if (loading) {
+  if (loading || tasksLoading || membersLoading) {
     return (
       <DashboardStructure>
-        <div className="flex h-full items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin" />
-        </div>
+        <DashboardSkeleton />
       </DashboardStructure>
     );
   }
@@ -54,10 +62,14 @@ export default function Dashboard({ params }: { params: { uuid: string } }) {
         title={`👋 Hola, ${toCapitalize(data?.user?.username)}.`}
       />
       <div className="grid grid-cols-1 md:grid-cols-4 mt-10 space-x-0 space-y-4 md:space-x-16 md:space-y-0">
-        <InfoTask name="Tareas totales" value={40} slug="tasks" />
-        <InfoTask name="Tareas completadas" value={6} slug="tasks" />
-        <InfoTask name="Tareas pendientes" value={10} slug="tasks" />
-        <InfoTask name="Miembros" value={8} slug="members" />
+        <InfoTask name="Tareas totales" value={totalTasks} slug="tasks" />
+        <InfoTask
+          name="Tareas completadas"
+          value={completedTasks}
+          slug="tasks"
+        />
+        <InfoTask name="Tareas pendientes" value={pendingTasks} slug="tasks" />
+        <InfoTask name="Miembros" value={totalMembers} slug="members" />
       </div>
       <MonthlyChart />
     </DashboardStructure>

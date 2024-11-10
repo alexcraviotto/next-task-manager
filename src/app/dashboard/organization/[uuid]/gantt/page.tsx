@@ -6,11 +6,20 @@ import Gantt from "@/components/Gantt";
 import { Link, Task } from "dhtmlx-gantt";
 import { useTasks } from "@/hooks/useTasks";
 import { Loader2 } from "lucide-react";
+import { GanttSkeleton } from "@/components/dashboard/gantt/GanttSkeleton";
 
 export default function Dashboard({ params }: { params: { uuid: string } }) {
   const { uuid } = params;
   const { tasks, isLoading, error, updateTask } = useTasks(uuid);
 
+  if (isLoading) {
+    return (
+      <DashboardStructure>
+        <DashboardTitle title="📊 Diagrama de Gantt" />
+        <GanttSkeleton />
+      </DashboardStructure>
+    );
+  }
   // Convert tasks to Gantt format
   const ganttTasks = {
     data: tasks.map((task) => ({
