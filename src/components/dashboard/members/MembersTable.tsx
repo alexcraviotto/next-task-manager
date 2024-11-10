@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Pencil, Plus, Save, Trash2 } from "lucide-react";
+import { Pencil, Plus, Save, Trash2, Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -26,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 
 interface Member {
   id: number;
@@ -38,7 +39,7 @@ interface Member {
 }
 
 export function MembersTable({ organizationId }: { organizationId: string }) {
-  console.log(organizationId);
+  const { toast } = useToast();
   const [members, setMembers] = useState<Member[]>([
     {
       id: 1,
@@ -62,21 +63,80 @@ export function MembersTable({ organizationId }: { organizationId: string }) {
 
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleEditMember = (member: Member) => {
     setEditingMember(member);
     setIsDialogOpen(true);
   };
 
-  const handleUpdateMember = () => {
+  const updateMemberWeight = async (userId: number, newWeight: number) => {
+    setIsLoading(true);
+
+    try {
+      const response = await fetch(`/api/member/${organizationId}/${userId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          weight: newWeight,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Error al actualizar el peso");
+      }
+
+      toast({
+        description: "Peso actualizado correctamente",
+        duration: 3000,
+      });
+
+      return true;
+    } catch (err) {
+      toast({
+        title: "Error",
+        description:
+          err instanceof Error ? err.message : "Error al actualizar el peso",
+        variant: "destructive",
+        duration: 5000,
+      });
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleUpdateMember = async () => {
     if (editingMember) {
-      setMembers(
-        members.map((member) =>
-          member.id === editingMember.id ? editingMember : member,
-        ),
+      if (editingMember.weight < 0 || editingMember.weight > 5) {
+        toast({
+          title: "Error",
+          description: "El peso debe estar entre 0 y 5",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const weightUpdated = await updateMemberWeight(
+        editingMember.id,
+        editingMember.weight,
       );
-      setEditingMember(null);
-      setIsDialogOpen(false);
+
+      if (weightUpdated) {
+        setMembers(
+          members.map((member) =>
+            member.id === editingMember.id ? editingMember : member,
+          ),
+        );
+        setTimeout(() => {
+          setEditingMember(null);
+          setIsDialogOpen(false);
+        }, 1500);
+      }
     }
   };
 
@@ -94,20 +154,26 @@ export function MembersTable({ organizationId }: { organizationId: string }) {
     setIsDialogOpen(true);
   };
 
-  const handleSaveMember = () => {
+  const handleSaveMember = async () => {
     if (editingMember) {
       if (editingMember.id > members.length) {
         setMembers([...members, editingMember]);
+        setEditingMember(null);
+        setIsDialogOpen(false);
+        toast({
+          description: "Miembro añadido correctamente",
+        });
       } else {
-        handleUpdateMember();
+        await handleUpdateMember();
       }
-      setEditingMember(null);
-      setIsDialogOpen(false);
     }
   };
 
   const handleDeleteMember = (memberId: number) => {
     setMembers(members.filter((member) => member.id !== memberId));
+    toast({
+      description: "Miembro eliminado correctamente",
+    });
   };
 
   return (
@@ -275,6 +341,8 @@ export function MembersTable({ organizationId }: { organizationId: string }) {
               <Input
                 id="weight"
                 type="number"
+                min="0"
+                max="5"
                 value={editingMember?.weight || 0}
                 onChange={(e) =>
                   setEditingMember(
@@ -290,11 +358,24 @@ export function MembersTable({ organizationId }: { organizationId: string }) {
               />
             </div>
           </div>
-          <Button onClick={handleSaveMember} className="w-full">
-            <Save className="h-4 w-4 mr-2" />
-            {editingMember && editingMember.id <= members.length
-              ? "Guardar Cambios"
-              : "Agregar Miembro"}
+          <Button
+            onClick={handleSaveMember}
+            className="w-full"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Guardando...
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4 mr-2" />
+                {editingMember && editingMember.id <= members.length
+                  ? "Guardar Cambios"
+                  : "Agregar Miembro"}
+              </>
+            )}
           </Button>
         </DialogContent>
       </Dialog>

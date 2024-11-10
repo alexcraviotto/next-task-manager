@@ -156,7 +156,7 @@ export function TaskTable({ projectId }: { projectId: string }) {
                 Satisfacción
               </TableHead>
               <TableHead className="p-2 sm:p-4 text-xs sm:text-sm w-[120px]">
-                Peso
+                Valoracion
               </TableHead>
               <TableHead className="p-2 sm:p-4 text-xs sm:text-sm w-[120px]">
                 Esfuerzo
@@ -231,11 +231,12 @@ export function TaskTable({ projectId }: { projectId: string }) {
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>
-              {editingTask && editingTask.id <= tasks.length
+              {(editingTask?.id ?? false)
                 ? "Editar Tarea"
                 : "Agregar Nueva Tarea"}
             </DialogTitle>
           </DialogHeader>
+
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="name" className="text-right">
@@ -388,12 +389,12 @@ export function TaskTable({ projectId }: { projectId: string }) {
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="peso" className="text-right">
-                Peso
+              <Label htmlFor="valoracion" className="text-right">
+                Valoración
               </Label>
               <Input
                 type="number"
-                id="peso"
+                id="valoracion"
                 value={editingTask?.weight || 0}
                 max={5}
                 min={0}
