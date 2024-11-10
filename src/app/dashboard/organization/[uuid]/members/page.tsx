@@ -12,7 +12,8 @@ export default function Dashboard() {
   const params = useParams();
   const organizationId = params?.uuid as string;
 
-  const { isLoading } = useMembers(organizationId);
+  const { members, isLoading, addMember, updateMember, deleteMember } =
+    useMembers(organizationId);
 
   if (!organizationId || isLoading) {
     return (
@@ -37,7 +38,12 @@ export default function Dashboard() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3, duration: 0.5 }}
       >
-        <MembersTable organizationId={organizationId} />
+        <MembersTable
+          members={members}
+          onAddMember={addMember}
+          onUpdateMember={updateMember}
+          onDeleteMember={deleteMember}
+        />
       </motion.div>
     </DashboardStructure>
   );

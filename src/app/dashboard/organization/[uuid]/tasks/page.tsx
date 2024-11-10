@@ -8,7 +8,7 @@ import { useTasks } from "@/hooks/useTasks";
 
 export default function Dashboard({ params }: { params: { uuid: string } }) {
   const { uuid } = params;
-  const { isLoading } = useTasks(uuid);
+  const { tasks, isLoading, addTask, updateTask, deleteTask } = useTasks(uuid);
 
   if (isLoading) {
     return (
@@ -45,7 +45,13 @@ export default function Dashboard({ params }: { params: { uuid: string } }) {
         animate={{ opacity: 1 }}
         transition={{ duration: 0.5, delay: 0.3 }}
       >
-        <TaskTable projectId={uuid} />
+        <TaskTable
+          projectId={uuid}
+          tasks={tasks}
+          onAddTask={addTask}
+          onUpdateTask={updateTask}
+          onDeleteTask={deleteTask}
+        />
       </motion.div>
     </DashboardStructure>
   );

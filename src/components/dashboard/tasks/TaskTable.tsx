@@ -26,19 +26,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useTasks } from "@/hooks/useTasks";
+import { Task } from "@/lib/types";
 
-interface Task {
-  id: number;
-  name: string;
-  description: string;
-  type: string;
-  startDate: string;
-  endDate: string;
-  progress: number;
-  dependencies: number;
-  weight: number;
-  organizationId: string;
+interface TaskTableProps {
+  projectId: string;
+  tasks: Task[];
+  onAddTask: (task: Omit<Task, "id">) => Promise<Task>;
+  onUpdateTask: (id: number, task: Partial<Task>) => Promise<Task>;
+  onDeleteTask: (id: number) => Promise<void>;
 }
 
 const formatDateForInput = (date: string): string => {
@@ -58,14 +53,19 @@ const parseInputDate = (dateString: string): string => {
   return new Date(dateString).toISOString();
 };
 
-export function TaskTable({ projectId }: { projectId: string }) {
+export function TaskTable({
+  projectId,
+  tasks,
+  onAddTask,
+  onUpdateTask,
+  onDeleteTask,
+}: TaskTableProps) {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const { tasks, error, addTask, updateTask, deleteTask } = useTasks(projectId);
 
   const handleAddTask = () => {
     const today = new Date().toISOString();
-    const newTask: Omit<Task, "id"> = {
+    const newTask: Omit<Task, "id" | "createdAt"> = {
       name: "",
       description: "",
       type: "task",
@@ -90,9 +90,9 @@ export function TaskTable({ projectId }: { projectId: string }) {
 
     try {
       if ("id" in editingTask) {
-        await updateTask(editingTask.id, editingTask);
+        await onUpdateTask(editingTask.id, editingTask);
       } else {
-        await addTask(editingTask);
+        await onAddTask(editingTask);
       }
       setIsDialogOpen(false);
       setEditingTask(null);
@@ -103,17 +103,11 @@ export function TaskTable({ projectId }: { projectId: string }) {
 
   const handleDeleteTask = async (taskId: number) => {
     try {
-      await deleteTask(taskId);
+      await onDeleteTask(taskId);
     } catch (error) {
       console.error("Error deleting task:", error);
     }
   };
-
-  if (error) {
-    return (
-      <div className="w-full p-4 text-center text-red-500">Error: {error}</div>
-    );
-  }
 
   return (
     <div className="w-full space-y-4 mt-10 relative">
@@ -146,7 +140,7 @@ export function TaskTable({ projectId }: { projectId: string }) {
                 Satisfacción
               </TableHead>
               <TableHead className="p-2 sm:p-4 text-xs sm:text-sm w-[120px]">
-                Peso
+                Valoración
               </TableHead>
               <TableHead className="p-2 sm:p-4 text-xs sm:text-sm w-[120px]">
                 Esfuerzo
@@ -343,12 +337,17 @@ export function TaskTable({ projectId }: { projectId: string }) {
                 id="progress"
                 type="number"
                 value={editingTask?.progress || 0}
+                min={0}
+                max={100}
                 onChange={(e) =>
                   setEditingTask(
                     editingTask
                       ? {
                           ...editingTask,
-                          progress: Number(e.target.value),
+                          progress: Math.min(
+                            100,
+                            Math.max(0, Number(e.target.value)),
+                          ),
                         }
                       : null,
                   )
