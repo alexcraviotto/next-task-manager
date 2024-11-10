@@ -39,6 +39,7 @@ export default function Dashboard() {
         transition={{ delay: 0.3, duration: 0.5 }}
       >
         <MembersTable
+          organizationId={organizationId}
           members={members}
           onAddMember={addMember}
           onUpdateMember={updateMember}
