@@ -55,6 +55,7 @@ describe("POST /api/tasks/create", () => {
         type: "Task",
         startDate: "2024-11-01",
         endDate: "2024-11-02",
+        progress: 1,
         organizationId: 1,
       }),
     }) as unknown as NextRequest;
