@@ -60,7 +60,19 @@ const parseInputDate = (dateString: string): string => {
   return new Date(dateString).toISOString();
 };
 
-export function TaskTable({ projectId }: { projectId: string }) {
+interface TaskTableProps {
+  projectId: string;
+  tasks: Task[];
+  onAddTask: (task: Omit<Task, "id">) => Promise<Task>;
+  onUpdateTask: (id: number, task: Partial<Task>) => Promise<Task>;
+  onDeleteTask: (id: number) => Promise<void>;
+}
+
+export function TaskTable({
+  projectId,
+  onAddTask,
+  onDeleteTask,
+}: TaskTableProps) {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -87,29 +99,6 @@ export function TaskTable({ projectId }: { projectId: string }) {
     }
   };
 
-  // Función para agregar una nueva tarea
-  const addTask = async (task: Omit<Task, "id">) => {
-    try {
-      const response = await fetch("/api/tasks", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(task),
-      });
-
-      if (!response.ok) {
-        throw new Error("Error al crear la tarea");
-      }
-
-      const newTask = await response.json();
-      setTasks((prevTasks) => [...prevTasks, newTask]);
-      return newTask;
-    } catch (error) {
-      throw error;
-    }
-  };
-
   // Función para actualizar una tarea existente
   const updateTask = async (taskId: number, taskData: Partial<Task>) => {
     try {
@@ -132,23 +121,6 @@ export function TaskTable({ projectId }: { projectId: string }) {
         ),
       );
       return updatedTask;
-    } catch (error) {
-      throw error;
-    }
-  };
-
-  // Función para eliminar una tarea
-  const deleteTask = async (taskId: number) => {
-    try {
-      const response = await fetch(`/api/tasks/${taskId}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        throw new Error("Error al eliminar la tarea");
-      }
-
-      setTasks((prevTasks) => prevTasks.filter((task) => task.id !== taskId));
     } catch (error) {
       throw error;
     }
@@ -190,7 +162,7 @@ export function TaskTable({ projectId }: { projectId: string }) {
 
   const handleAddTask = () => {
     const today = new Date().toISOString();
-    const newTask: Omit<Task, "id"> = {
+    const newTask: Omit<Task, "id" | "createdAt"> = {
       name: "",
       description: "",
       type: "task",
@@ -230,7 +202,7 @@ export function TaskTable({ projectId }: { projectId: string }) {
           });
         }
       } else {
-        await addTask(editingTask);
+        await onAddTask(editingTask);
       }
       setIsDialogOpen(false);
       setEditingTask(null);
@@ -243,7 +215,7 @@ export function TaskTable({ projectId }: { projectId: string }) {
 
   const handleDeleteTask = async (taskId: number) => {
     try {
-      await deleteTask(taskId);
+      await onDeleteTask(taskId);
     } catch (error) {
       console.error("Error deleting task:", error);
     }
@@ -494,12 +466,17 @@ export function TaskTable({ projectId }: { projectId: string }) {
                 id="progress"
                 type="number"
                 value={editingTask?.progress || 0}
+                min={0}
+                max={100}
                 onChange={(e) =>
                   setEditingTask(
                     editingTask
                       ? {
                           ...editingTask,
-                          progress: Number(e.target.value),
+                          progress: Math.min(
+                            100,
+                            Math.max(0, Number(e.target.value)),
+                          ),
                         }
                       : null,
                   )
@@ -543,7 +520,10 @@ export function TaskTable({ projectId }: { projectId: string }) {
                     editingTask
                       ? {
                           ...editingTask,
-                          weight: Number(e.target.value),
+                          weight: Math.min(
+                            5,
+                            Math.max(0, Number(e.target.value)),
+                          ),
                         }
                       : null,
                   )

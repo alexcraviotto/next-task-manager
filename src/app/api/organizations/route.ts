@@ -11,43 +11,63 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
-  const { name }: { name: string } = await req.json();
+  try {
+    const { name, weight }: { name: string; weight?: number } =
+      await req.json();
 
-  if (!name) {
-    return NextResponse.json({ message: "Name is required" }, { status: 400 });
+    // Validate weight first
+    if (weight !== undefined && (weight < 0 || weight > 5)) {
+      return NextResponse.json(
+        { message: "Weight must be between 0 and 5" },
+        { status: 400 },
+      );
+    }
+
+    if (!name) {
+      return NextResponse.json(
+        { message: "Name is required" },
+        { status: 400 },
+      );
+    }
+    const existingUser = await prisma.user.findUnique({
+      where: {
+        email: session.user.email!,
+      },
+    });
+    if (!existingUser) {
+      return NextResponse.json({ message: "User not found" }, { status: 404 });
+    }
+
+    const existingOrganization = await prisma.organization.findUnique({
+      where: { name },
+    });
+
+    if (existingOrganization) {
+      return NextResponse.json({ message: "Name exists" }, { status: 400 });
+    }
+
+    const newOrganization = await prisma.organization.create({
+      data: { name, createdById: existingUser.id },
+    });
+    await prisma.userOrganization.create({
+      data: {
+        userId: existingUser.id,
+        organizationId: newOrganization.id,
+        weight: weight ?? 0,
+      },
+    });
+
+    return NextResponse.json(
+      { message: "Success", organization: newOrganization },
+      { status: 200 },
+    );
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json(
+      { message: "Internal server error" },
+      { status: 500 },
+    );
   }
-  const existingUser = await prisma.user.findUnique({
-    where: {
-      email: session.user.email!,
-    },
-  });
-  if (!existingUser) {
-    return NextResponse.json({ message: "User not found" }, { status: 404 });
-  }
-
-  const existingOrganization = await prisma.organization.findUnique({
-    where: { name },
-  });
-
-  if (existingOrganization) {
-    return NextResponse.json({ message: "Name exists" }, { status: 400 });
-  }
-
-  const newOrganization = await prisma.organization.create({
-    data: { name, createdById: existingUser.id },
-  });
-  await prisma.userOrganization.create({
-    data: {
-      userId: existingUser.id,
-      organizationId: newOrganization.id,
-      weight: 0,
-    },
-  });
-
-  return NextResponse.json(
-    { message: "Success", organization: newOrganization },
-    { status: 200 },
-  );
 }
 
 export async function GET(req: NextRequest) {
@@ -124,7 +144,29 @@ export async function GET(req: NextRequest) {
         );
       }
 
-      return NextResponse.json(organization);
+      // Cálculo del progreso total
+      let totalProgress = 0;
+      const tasks = organization.tasks;
+
+      if (tasks.length > 0) {
+        // Suma todos los progresos y divide por el número total de tareas
+        totalProgress =
+          tasks.reduce((sum, task) => sum + task.progress, 0) / tasks.length;
+      }
+
+      // Crear un objeto con la información de la organización y el progreso total
+      const organizationWithProgress = {
+        ...organization,
+        totalProgress: parseFloat(totalProgress.toFixed(2)), // Redondear a 2 decimales
+        totalTasks: tasks.length,
+        completedTasks: tasks.filter((task) => task.progress === 100).length,
+        inProgressTasks: tasks.filter(
+          (task) => task.progress > 0 && task.progress < 100,
+        ).length,
+        pendingTasks: tasks.filter((task) => task.progress === 0).length,
+      };
+
+      return NextResponse.json(organizationWithProgress);
     } else {
       const organizations = await prisma.organization.findMany({
         where: {
@@ -134,8 +176,36 @@ export async function GET(req: NextRequest) {
             },
           },
         },
+        include: {
+          tasks: true, // Incluir tareas para calcular el progreso
+        },
       });
-      return NextResponse.json(organizations);
+
+      // Calcular el progreso para cada organización
+      const organizationsWithProgress = organizations.map((org) => {
+        let totalProgress = 0;
+        if (org.tasks.length > 0) {
+          console.log(org.tasks);
+          totalProgress =
+            org.tasks.reduce((sum, task) => sum + task.progress, 0) /
+            org.tasks.length;
+          console.log(totalProgress);
+        }
+
+        return {
+          ...org,
+          totalProgress: parseFloat(totalProgress.toFixed(2)),
+          totalTasks: org.tasks.length,
+          completedTasks: org.tasks.filter((task) => task.progress === 100)
+            .length,
+          inProgressTasks: org.tasks.filter(
+            (task) => task.progress > 0 && task.progress < 100,
+          ).length,
+          pendingTasks: org.tasks.filter((task) => task.progress === 0).length,
+        };
+      });
+
+      return NextResponse.json(organizationsWithProgress);
     }
   } catch (error) {
     console.error("Error fetching organizations:", error);

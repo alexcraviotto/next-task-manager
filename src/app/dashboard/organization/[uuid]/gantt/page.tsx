@@ -3,60 +3,68 @@
 import { DashboardStructure } from "@/components/dashboard/DashboardStructure";
 import { DashboardTitle } from "@/components/dashboard/DashboardTitle";
 import Gantt from "@/components/Gantt";
-import { Link, Task } from "dhtmlx-gantt";
+import { useTasks } from "@/hooks/useTasks";
+import { GanttSkeleton } from "@/components/dashboard/gantt/GanttSkeleton";
+import { motion } from "framer-motion";
 
-const mockTasks: { data: Task[]; links: Link[] } = {
-  data: [
-    {
-      id: 1,
-      text: "GestionarTarea1",
-      description: "",
-      type: "task",
-      start_date: new Date("2024-10-19"),
-      end_date: new Date("2024-10-20"),
-      progress: 0,
+export default function Dashboard({ params }: { params: { uuid: string } }) {
+  const { uuid } = params;
+  const { tasks, isLoading } = useTasks(uuid);
+
+  const ganttTasks = {
+    data: tasks.map((task) => ({
+      id: task.id,
+      text: task.name,
+      description: task.description,
+      type: task.type,
+      start_date: new Date(task.startDate),
+      end_date: new Date(task.endDate),
+      progress: task.progress / 100,
       parent: 0,
-    },
-    {
-      id: 2,
-      text: "NuevaTareaNueva",
-      description: "",
-      type: "task",
-      start_date: new Date("2024-10-19"),
-      end_date: new Date("2024-10-20"),
-      progress: 0,
-      parent: 0,
-    },
-  ],
-  links: [{ id: 1, source: 1, target: 2, type: "0" }],
-};
-
-export default function Dashboard({
-  params,
-}: {
-  params: { projectId: string };
-}) {
-  const { projectId } = params;
-  console.log("🚀 ~ projectId:", projectId);
-
-  const handleTaskChange = (task: Task) => {
-    console.log("Task updated:", task);
+      weight: task.weight,
+    })),
+    links: [],
   };
 
-  const handleLinkChange = (link: Link) => {
-    console.log("Link updated:", link);
-  };
+  if (isLoading) {
+    return (
+      <DashboardStructure>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <DashboardTitle title="📊 Diagrama de Gantt" />
+        </motion.div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.5 }}
+          className="mt-8"
+        >
+          <GanttSkeleton />
+        </motion.div>
+      </DashboardStructure>
+    );
+  }
 
   return (
     <DashboardStructure>
-      <DashboardTitle title="📊 Diagrama de Gantt" />
-      <div className="mt-8">
-        <Gantt
-          tasks={mockTasks}
-          onTaskChange={handleTaskChange}
-          onLinkChange={handleLinkChange}
-        />
-      </div>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <DashboardTitle title="📊 Diagrama de Gantt" />
+      </motion.div>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3, duration: 0.5 }}
+        className="mt-8"
+      >
+        <Gantt tasks={ganttTasks} />
+      </motion.div>
     </DashboardStructure>
   );
 }

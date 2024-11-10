@@ -1,17 +1,6 @@
+"use client";
+import { Task } from "@/lib/types";
 import { useState, useEffect, useCallback } from "react";
-
-interface Task {
-  id: number;
-  name: string;
-  description: string;
-  type: string;
-  startDate: string;
-  endDate: string;
-  progress: number;
-  dependencies: number;
-  weight: number;
-  organizationId: string;
-}
 
 export function useTasks(organizationId: string) {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -39,6 +28,9 @@ export function useTasks(organizationId: string) {
   }, [fetchTasks]);
 
   const addTask = async (newTask: Omit<Task, "id">) => {
+    if (newTask.weight < 0 || newTask.weight > 5) {
+      throw new Error("Weight must be between 0 and 5");
+    }
     try {
       const response = await fetch("/api/tasks", {
         method: "POST",
@@ -56,6 +48,12 @@ export function useTasks(organizationId: string) {
   };
 
   const updateTask = async (taskId: number, updates: Partial<Task>) => {
+    if (
+      updates.weight !== undefined &&
+      (updates.weight < 0 || updates.weight > 5)
+    ) {
+      throw new Error("Weight must be between 0 and 5");
+    }
     try {
       const response = await fetch(`/api/tasks/${taskId}`, {
         method: "PUT",

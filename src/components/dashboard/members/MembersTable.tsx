@@ -27,16 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-
-interface Member {
-  id: number;
-  username: string;
-  email: string;
-  isAdmin: boolean;
-  createdAt: string;
-  updatedAt: string;
-  weight: number;
-}
+import { Member } from "@/lib/types";
 
 export function MembersTable({ organizationId }: { organizationId: string }) {
   const { toast } = useToast();
@@ -142,7 +133,7 @@ export function MembersTable({ organizationId }: { organizationId: string }) {
 
   const handleAddMember = () => {
     const newMember: Member = {
-      id: members.length + 1,
+      id: -1,
       username: "",
       email: "",
       isAdmin: false,
@@ -341,15 +332,18 @@ export function MembersTable({ organizationId }: { organizationId: string }) {
               <Input
                 id="weight"
                 type="number"
-                min="0"
-                max="5"
                 value={editingMember?.weight || 0}
+                min={0}
+                max={5}
                 onChange={(e) =>
                   setEditingMember(
                     editingMember
                       ? {
                           ...editingMember,
-                          weight: parseInt(e.target.value),
+                          weight: Math.min(
+                            5,
+                            Math.max(0, parseInt(e.target.value)),
+                          ),
                         }
                       : null,
                   )
