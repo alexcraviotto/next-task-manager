@@ -11,43 +11,63 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
-  const { name }: { name: string } = await req.json();
+  try {
+    const { name, weight }: { name: string; weight?: number } =
+      await req.json();
 
-  if (!name) {
-    return NextResponse.json({ message: "Name is required" }, { status: 400 });
+    // Validate weight first
+    if (weight !== undefined && (weight < 0 || weight > 5)) {
+      return NextResponse.json(
+        { message: "Weight must be between 0 and 5" },
+        { status: 400 },
+      );
+    }
+
+    if (!name) {
+      return NextResponse.json(
+        { message: "Name is required" },
+        { status: 400 },
+      );
+    }
+    const existingUser = await prisma.user.findUnique({
+      where: {
+        email: session.user.email!,
+      },
+    });
+    if (!existingUser) {
+      return NextResponse.json({ message: "User not found" }, { status: 404 });
+    }
+
+    const existingOrganization = await prisma.organization.findUnique({
+      where: { name },
+    });
+
+    if (existingOrganization) {
+      return NextResponse.json({ message: "Name exists" }, { status: 400 });
+    }
+
+    const newOrganization = await prisma.organization.create({
+      data: { name, createdById: existingUser.id },
+    });
+    await prisma.userOrganization.create({
+      data: {
+        userId: existingUser.id,
+        organizationId: newOrganization.id,
+        weight: weight ?? 0,
+      },
+    });
+
+    return NextResponse.json(
+      { message: "Success", organization: newOrganization },
+      { status: 200 },
+    );
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json(
+      { message: "Internal server error" },
+      { status: 500 },
+    );
   }
-  const existingUser = await prisma.user.findUnique({
-    where: {
-      email: session.user.email!,
-    },
-  });
-  if (!existingUser) {
-    return NextResponse.json({ message: "User not found" }, { status: 404 });
-  }
-
-  const existingOrganization = await prisma.organization.findUnique({
-    where: { name },
-  });
-
-  if (existingOrganization) {
-    return NextResponse.json({ message: "Name exists" }, { status: 400 });
-  }
-
-  const newOrganization = await prisma.organization.create({
-    data: { name, createdById: existingUser.id },
-  });
-  await prisma.userOrganization.create({
-    data: {
-      userId: existingUser.id,
-      organizationId: newOrganization.id,
-      weight: 0,
-    },
-  });
-
-  return NextResponse.json(
-    { message: "Success", organization: newOrganization },
-    { status: 200 },
-  );
 }
 
 export async function GET(req: NextRequest) {
