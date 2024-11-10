@@ -6,12 +6,12 @@ import Gantt from "@/components/Gantt";
 import { Link, Task } from "dhtmlx-gantt";
 import { useTasks } from "@/hooks/useTasks";
 import { Loader2 } from "lucide-react";
+import { motion } from "framer-motion";
 
 export default function Dashboard({ params }: { params: { uuid: string } }) {
   const { uuid } = params;
   const { tasks, isLoading, error, updateTask } = useTasks(uuid);
 
-  // Convert tasks to Gantt format
   const ganttTasks = {
     data: tasks.map((task) => ({
       id: task.id,
@@ -22,9 +22,9 @@ export default function Dashboard({ params }: { params: { uuid: string } }) {
       end_date: new Date(task.endDate),
       progress: task.progress / 100,
       parent: 0,
-      weight: task.weight, // Preserve weight in Gantt data
+      weight: task.weight,
     })),
-    links: [], // You can add links if needed
+    links: [],
   };
 
   const handleTaskChange = async (task: Task) => {
@@ -51,7 +51,6 @@ export default function Dashboard({ params }: { params: { uuid: string } }) {
 
   const handleLinkChange = (link: Link) => {
     console.log("Link updated:", link);
-    // Implement link updates if needed
   };
 
   if (isLoading) {
@@ -67,23 +66,39 @@ export default function Dashboard({ params }: { params: { uuid: string } }) {
   if (error) {
     return (
       <DashboardStructure>
-        <div className="w-full p-4 text-center text-red-500">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5 }}
+          className="w-full p-4 text-center text-red-500"
+        >
           Error: {error}
-        </div>
+        </motion.div>
       </DashboardStructure>
     );
   }
 
   return (
     <DashboardStructure>
-      <DashboardTitle title="📊 Diagrama de Gantt" />
-      <div className="mt-8">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <DashboardTitle title="📊 Diagrama de Gantt" />
+      </motion.div>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3, duration: 0.5 }}
+        className="mt-8"
+      >
         <Gantt
           tasks={ganttTasks}
           onTaskChange={handleTaskChange}
           onLinkChange={handleLinkChange}
         />
-      </div>
+      </motion.div>
     </DashboardStructure>
   );
 }
