@@ -46,8 +46,6 @@ export default function Dashboard({ params }: { params: { uuid: string } }) {
     }
   }, [params.uuid, router]);
 
- 
-
   const toCapitalize = (name: string | undefined) =>
     name ? name[0].toUpperCase() + name.slice(1) : "NoName";
 
@@ -60,55 +58,60 @@ export default function Dashboard({ params }: { params: { uuid: string } }) {
       transition: { duration: 0.6, ease: "easeOut" },
     },
   };
-  
 
   const itemVariants = {
     hidden: { opacity: 0, scale: 0.9 },
     visible: { opacity: 1, scale: 1, transition: { duration: 0.4 } },
   };
-   if (loading || tasksLoading || membersLoading) {
-      return (
-        <motion.div initial="hidden" animate="visible" variants={containerVariants}>
-          <DashboardStructure>
-            <DashboardSkeleton />
-          </DashboardStructure>
-        </motion.div>
-
-      );
-    }
+  if (loading || tasksLoading || membersLoading) {
+    return (
+      <motion.div
+        initial="hidden"
+        animate="visible"
+        variants={containerVariants}
+      >
+        <DashboardStructure>
+          <DashboardSkeleton />
+        </DashboardStructure>
+      </motion.div>
+    );
+  }
   return (
-   <motion.div initial="hidden" animate="visible" variants={containerVariants}>
-    <DashboardStructure>
-      <DashboardTitle
-        title={`👋 Hola, ${toCapitalize(data?.user?.username)}.`}
-      />
-      <motion.div
-        className="grid grid-cols-1 md:grid-cols-4 mt-10 space-x-0 space-y-4 md:space-x-16 md:space-y-0"
-        initial="hidden"
-        animate="visible"
-        variants={containerVariants}
-      >
-        {[
-          { name: "Tareas totales", value: totalTasks, slug: "tasks" },
-          { name: "Tareas completadas", value: completedTasks, slug: "tasks" },
-          { name: "Tareas pendientes", value: pendingTasks, slug: "tasks" },
-          { name: "Miembros", value: totalMembers, slug: "members" },
-        ].map((info, index) => (
-          <motion.div key={index} variants={itemVariants}>
-            <InfoTask name={info.name} value={info.value} slug={info.slug} />
-          </motion.div>
-        ))}
-      </motion.div>
-      <motion.div
-        initial="hidden"
-        animate="visible"
-        variants={containerVariants}
-        className="mt-10"
-      >
-        <MonthlyChart />
-      </motion.div>
-    </DashboardStructure>
-  </motion.div>
-
+    <motion.div initial="hidden" animate="visible" variants={containerVariants}>
+      <DashboardStructure>
+        <DashboardTitle
+          title={`👋 Hola, ${toCapitalize(data?.user?.username)}.`}
+        />
+        <motion.div
+          className="grid grid-cols-1 md:grid-cols-4 mt-10 space-x-0 space-y-4 md:space-x-16 md:space-y-0"
+          initial="hidden"
+          animate="visible"
+          variants={containerVariants}
+        >
+          {[
+            { name: "Tareas totales", value: totalTasks, slug: "tasks" },
+            {
+              name: "Tareas completadas",
+              value: completedTasks,
+              slug: "tasks",
+            },
+            { name: "Tareas pendientes", value: pendingTasks, slug: "tasks" },
+            { name: "Miembros", value: totalMembers, slug: "members" },
+          ].map((info, index) => (
+            <motion.div key={index} variants={itemVariants}>
+              <InfoTask name={info.name} value={info.value} slug={info.slug} />
+            </motion.div>
+          ))}
+        </motion.div>
+        <motion.div
+          initial="hidden"
+          animate="visible"
+          variants={containerVariants}
+          className="mt-10"
+        >
+          <MonthlyChart />
+        </motion.div>
+      </DashboardStructure>
+    </motion.div>
   );
 }

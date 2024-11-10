@@ -2,7 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { usePathname } from "next/navigation";
 import { slugsToName } from "@/lib/types";
-import { LayoutDashboardIcon, LogOutIcon } from "lucide-react";
+import { LogOutIcon } from "lucide-react";
 import { signOut } from "next-auth/react";
 import {
   Tooltip,
@@ -10,6 +10,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { SidebarTrigger } from "../ui/sidebar";
 
 export default function TopBar() {
   const pathname = usePathname();
@@ -23,7 +24,7 @@ export default function TopBar() {
     <div className="flex flex-row items-center justify-between px-3 sm:px-6 h-12 sm:h-14">
       <div className="flex items-center gap-2 sm:gap-4">
         <div className="flex items-center">
-          <LayoutDashboardIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+          <SidebarTrigger className="h-4 w-4 sm:h-5 sm:w-5"></SidebarTrigger>
         </div>
         <div className="hidden sm:block h-6 w-px bg-gray-300" />
         <div className="text-sm sm:text-base font-medium truncate max-w-[200px] sm:max-w-none">
