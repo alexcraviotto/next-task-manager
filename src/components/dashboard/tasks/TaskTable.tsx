@@ -10,14 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Pencil, Plus, Save } from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Pencil, Plus, Save, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -26,179 +19,244 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Task } from "@/lib/types";
 
-interface Task {
-  id: number;
-  name: string;
-  description: string;
-  type: string;
-  startDate: string;
-  endDate: string;
-  progress: number;
-  dependencies: number;
-  weight: number;
+interface TaskTableProps {
+  projectId: string;
+  tasks: Task[];
+  onAddTask: (task: Omit<Task, "id">) => Promise<Task>;
+  onUpdateTask: (id: number, task: Partial<Task>) => Promise<Task>;
+  onDeleteTask: (id: number) => Promise<void>;
 }
 
-export function TaskTable({ projectId }: { projectId: string }) {
-  console.log("🚀 ~ TaskTable ~ projectId:", projectId);
-  const [tasks, setTasks] = useState<Task[]>([
-    {
-      id: 1,
-      name: "GestionarTarea1",
-      description: "",
-      type: "task",
-      startDate: "19/10/2024",
-      endDate: "20/10/2024",
-      progress: 0,
-      dependencies: 0,
-      weight: 0,
-    },
-    {
-      id: 2,
-      name: "NuevaTareaNueva",
-      description: "",
-      type: "task",
-      startDate: "19/10/2024",
-      endDate: "20/10/2024",
-      progress: 0,
-      dependencies: 0,
-      weight: 0,
-    },
-  ]);
+const formatDateForInput = (date: string): string => {
+  if (!date) return "";
 
+  try {
+    const dateObj = new Date(date);
+    return dateObj.toISOString().split("T")[0];
+  } catch (error) {
+    console.error("Error formatting date:", error);
+    return "";
+  }
+};
+
+const parseInputDate = (dateString: string): string => {
+  if (!dateString) return new Date().toISOString();
+  return new Date(dateString).toISOString();
+};
+
+export function TaskTable({
+  projectId,
+  tasks,
+  onAddTask,
+  onUpdateTask,
+  onDeleteTask,
+}: TaskTableProps) {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleAddTask = () => {
+    const today = new Date().toISOString();
+    const newTask: Omit<Task, "id" | "createdAt"> = {
+      name: "",
+      description: "",
+      type: "task",
+      startDate: today,
+      endDate: today,
+      progress: 0,
+      dependencies: 0,
+      weight: 0,
+      organizationId: projectId,
+      effort: 0,
+    };
+    setEditingTask(newTask as Task);
+    setIsDialogOpen(true);
+  };
 
   const handleEditTask = (task: Task) => {
     setEditingTask(task);
     setIsDialogOpen(true);
   };
 
-  const handleUpdateTask = () => {
-    if (editingTask) {
-      setTasks(
-        tasks.map((task) => (task.id === editingTask.id ? editingTask : task)),
-      );
-      setEditingTask(null);
-      setIsDialogOpen(false);
+  const updateTaskRating = async (
+    taskId: number,
+    data: { organizationId?: string; effort?: number; clientWeight?: number },
+  ) => {
+    setIsLoading(true);
+    console.log("Loading: ", isLoading);
+    setError(null);
+    console.log("Error: ", error);
+    try {
+      const response = await fetch(`/api/tasks/${taskId}/feedback`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Error al actualizar la valoración");
+      }
+      return result;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error desconocido");
+      throw err;
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleAddTask = () => {
-    const newTask: Task = {
-      id: tasks.length + 1,
-      name: "",
-      description: "",
-      type: "task",
-      startDate: "",
-      endDate: "",
-      progress: 0,
-      dependencies: 0,
-      weight: 0,
-    };
-    setEditingTask(newTask);
-    setIsDialogOpen(true);
+  const handleSaveTask = async () => {
+    if (!editingTask) return;
+    try {
+      let updatedTask;
+      if ("id" in editingTask) {
+        // Si estamos editando una tarea existente
+        updatedTask = await onUpdateTask(editingTask.id, editingTask);
+        // Actualizamos también la valoración si hay cambios en el esfuerzo o peso
+        if (
+          editingTask.effort !== undefined ||
+          editingTask.weight !== undefined
+        ) {
+          await updateTaskRating(editingTask.id, {
+            organizationId: projectId,
+            effort: editingTask.effort,
+            clientWeight: editingTask.weight,
+          });
+        }
+      } else {
+        // Si es una nueva tarea
+        updatedTask = await onAddTask(editingTask);
+        console.log("Tarea agregada:", updatedTask);
+      }
+      setIsDialogOpen(false);
+      setEditingTask(null);
+    } catch (error) {
+      console.error("Error saving task:", error);
+      setError(
+        error instanceof Error ? error.message : "Error al guardar la tarea",
+      );
+    }
   };
 
-  const handleSaveTask = () => {
-    if (editingTask) {
-      if (editingTask.id > tasks.length) {
-        setTasks([...tasks, editingTask]);
-      } else {
-        handleUpdateTask();
-      }
-      setEditingTask(null);
-      setIsDialogOpen(false);
+  const handleDeleteTask = async (taskId: number) => {
+    try {
+      await onDeleteTask(taskId);
+    } catch (error) {
+      console.error("Error deleting task:", error);
     }
   };
 
   return (
     <div className="w-full space-y-4 mt-10 relative">
-      {/* Container con scroll horizontal mejorado */}
       <div className="border rounded-lg overflow-x-auto overscroll-x-contain touch-pan-x scrollbar-thin scrollbar-thumb-gray-300">
-        {/* Grid container con ancho mínimo */}
-        <div className="min-w-[320px] lg:w-full relative">
-          <Table>
-            <TableHeader>
-              <TableRow className="divide-x divide-gray-200">
-                {/* Columna fija izquierda */}
-                <TableHead className="p-2 sm:p-4 text-xs sm:text-sm font-medium sticky left-0 bg-white z-20 w-[120px] sm:w-[150px]">
-                  Tareas
-                </TableHead>
-                <TableHead className="p-2 sm:p-4 text-xs sm:text-sm min-w-[150px]">
-                  Descripción
-                </TableHead>
-                <TableHead className="p-2 sm:p-4 text-xs sm:text-sm w-[100px]">
-                  Tipo
-                </TableHead>
-                <TableHead className="p-2 sm:p-4 text-xs sm:text-sm w-[100px]">
-                  Inicio
-                </TableHead>
-                <TableHead className="p-2 sm:p-4 text-xs sm:text-sm w-[100px]">
-                  Fin
-                </TableHead>
-                <TableHead className="p-2 sm:p-4 text-xs sm:text-sm text-center w-[90px]">
-                  Progreso
-                </TableHead>
-                <TableHead className="p-2 sm:p-4 text-xs sm:text-sm text-center w-[100px]">
-                  Dependientes
-                </TableHead>
-                <TableHead className="p-2 sm:p-4 text-xs sm:text-sm w-[120px]">
-                  Peso
-                </TableHead>
-                {/* Columna fija derecha */}
-                <TableHead className="p-2 sm:p-4 text-xs sm:text-sm sticky right-0 bg-white z-20 w-[100px]">
-                  Acciones
-                </TableHead>
+        <Table>
+          <TableHeader>
+            <TableRow className="divide-x divide-gray-200">
+              <TableHead className="p-2 sm:p-4 text-xs sm:text-sm font-medium sticky left-0 bg-white z-20 w-[120px] sm:w-[150px]">
+                Tareas
+              </TableHead>
+              <TableHead className="p-2 sm:p-4 text-xs sm:text-sm min-w-[150px]">
+                Descripción
+              </TableHead>
+              <TableHead className="p-2 sm:p-4 text-xs sm:text-sm w-[100px]">
+                Tipo
+              </TableHead>
+              <TableHead className="p-2 sm:p-4 text-xs sm:text-sm w-[100px]">
+                Inicio
+              </TableHead>
+              <TableHead className="p-2 sm:p-4 text-xs sm:text-sm w-[100px]">
+                Fin
+              </TableHead>
+              <TableHead className="p-2 sm:p-4 text-xs sm:text-sm text-center w-[90px]">
+                Progreso
+              </TableHead>
+              <TableHead className="p-2 sm:p-4 text-xs sm:text-sm text-center w-[100px]">
+                Dependientes
+              </TableHead>
+              <TableHead className="p-2 sm:p-4 text-xs sm:text-sm w-[120px]">
+                Satisfacción
+              </TableHead>
+              <TableHead className="p-2 sm:p-4 text-xs sm:text-sm w-[120px]">
+                Valoración
+              </TableHead>
+              <TableHead className="p-2 sm:p-4 text-xs sm:text-sm w-[120px]">
+                Esfuerzo
+              </TableHead>
+              <TableHead className="p-2 sm:p-4 text-xs sm:text-sm sticky right-0 bg-white z-20 w-[100px]">
+                Acciones
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {tasks.map((task) => (
+              <TableRow key={task.id} className="divide-x divide-gray-200">
+                <TableCell className="p-2 sm:p-4 text-xs sm:text-sm break-words sticky left-0 bg-white">
+                  {task.name}
+                </TableCell>
+                <TableCell className="p-2 sm:p-4 text-xs sm:text-sm break-words">
+                  {task.description}
+                </TableCell>
+                <TableCell className="p-2 sm:p-4 text-xs sm:text-sm">
+                  {task.type}
+                </TableCell>
+                <TableCell className="p-2 sm:p-4 text-xs sm:text-sm">
+                  {new Date(task.startDate).toLocaleDateString("es-ES")}
+                </TableCell>
+                <TableCell className="p-2 sm:p-4 text-xs sm:text-sm">
+                  {new Date(task.endDate).toLocaleDateString("es-ES")}
+                </TableCell>
+                <TableCell className="p-2 sm:p-4 text-xs sm:text-sm text-center">
+                  {task.progress}%
+                </TableCell>
+                <TableCell className="p-2 sm:p-4 text-xs sm:text-sm text-center">
+                  {task.dependencies}
+                </TableCell>
+                <TableCell className="p-2 sm:p-4 text-xs sm:text-sm">
+                  0
+                </TableCell>
+                <TableCell className="p-2 sm:p-4 text-xs sm:text-sm">
+                  {task.weight ?? 0}
+                </TableCell>
+                <TableCell className="p-2 sm:p-4 text-xs sm:text-sm">
+                  0
+                </TableCell>
+                <TableCell className="p-2 sm:p-4 text-xs sm:text-sm sticky right-0 bg-white">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleEditTask(task)}
+                  >
+                    <Pencil className="h-4 w-4" />
+                    <span className="sr-only">Editar tarea</span>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleDeleteTask(task.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    <span className="sr-only">Eliminar tarea</span>
+                  </Button>
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {tasks.map((task) => (
-                <TableRow key={task.id} className="divide-x divide-gray-200">
-                  <TableCell className="p-2 sm:p-4 text-xs sm:text-sm break-words sticky left-0 bg-white">
-                    {task.name}
-                  </TableCell>
-                  <TableCell className="p-2 sm:p-4 text-xs sm:text-sm break-words">
-                    {task.description}
-                  </TableCell>
-                  <TableCell className="p-2 sm:p-4 text-xs sm:text-sm">
-                    {task.type}
-                  </TableCell>
-                  <TableCell className="p-2 sm:p-4 text-xs sm:text-sm">
-                    {task.startDate}
-                  </TableCell>
-                  <TableCell className="p-2 sm:p-4 text-xs sm:text-sm">
-                    {task.endDate}
-                  </TableCell>
-                  <TableCell className="p-2 sm:p-4 text-xs sm:text-sm text-center">
-                    {task.progress}%
-                  </TableCell>
-                  <TableCell className="p-2 sm:p-4 text-xs sm:text-sm text-center">
-                    {task.dependencies}
-                  </TableCell>
-                  <TableCell className="p-2 sm:p-4 text-xs sm:text-sm">
-                    {task.weight}
-                  </TableCell>
-                  <TableCell className="p-2 sm:p-4 text-xs sm:text-sm sticky right-0 bg-white">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleEditTask(task)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                      <span className="sr-only">Editar tarea</span>
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-
-          {/* Indicadores de scroll */}
-          {/* <div className="absolute left-0 top-0 h-full w-4 bg-gradient-to-r from-white to-transparent pointer-events-none" />
-          <div className="absolute right-0 top-0 h-full w-4 bg-gradient-to-l from-white to-transparent pointer-events-none" /> */}
-        </div>
+            ))}
+          </TableBody>
+        </Table>
       </div>
+
       <Button variant="default" className="gap-2" onClick={handleAddTask}>
         <Plus className="h-4 w-4" />
         Agregar Tarea
@@ -207,7 +265,7 @@ export function TaskTable({ projectId }: { projectId: string }) {
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>
-              {editingTask && editingTask.id <= tasks.length
+              {(editingTask?.id ?? null)
                 ? "Editar Tarea"
                 : "Agregar Nueva Tarea"}
             </DialogTitle>
@@ -282,13 +340,15 @@ export function TaskTable({ projectId }: { projectId: string }) {
               <Input
                 id="startDate"
                 type="date"
-                value={editingTask?.startDate || ""}
+                value={
+                  editingTask ? formatDateForInput(editingTask.startDate) : ""
+                }
                 onChange={(e) =>
                   setEditingTask(
                     editingTask
                       ? {
                           ...editingTask,
-                          startDate: e.target.value,
+                          startDate: parseInputDate(e.target.value),
                         }
                       : null,
                   )
@@ -303,13 +363,15 @@ export function TaskTable({ projectId }: { projectId: string }) {
               <Input
                 id="endDate"
                 type="date"
-                value={editingTask?.endDate || ""}
+                value={
+                  editingTask ? formatDateForInput(editingTask.endDate) : ""
+                }
                 onChange={(e) =>
                   setEditingTask(
                     editingTask
                       ? {
                           ...editingTask,
-                          endDate: e.target.value,
+                          endDate: parseInputDate(e.target.value),
                         }
                       : null,
                   )
@@ -325,12 +387,17 @@ export function TaskTable({ projectId }: { projectId: string }) {
                 id="progress"
                 type="number"
                 value={editingTask?.progress || 0}
+                min={0}
+                max={100}
                 onChange={(e) =>
                   setEditingTask(
                     editingTask
                       ? {
                           ...editingTask,
-                          progress: Number(e.target.value),
+                          progress: Math.min(
+                            100,
+                            Math.max(0, Number(e.target.value)),
+                          ),
                         }
                       : null,
                   )
@@ -374,7 +441,36 @@ export function TaskTable({ projectId }: { projectId: string }) {
                     editingTask
                       ? {
                           ...editingTask,
-                          weight: Number(e.target.value),
+                          weight: Math.min(
+                            5,
+                            Math.max(0, Number(e.target.value)),
+                          ),
+                        }
+                      : null,
+                  )
+                }
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="esfuerzo" className="text-right">
+                Esfuerzo
+              </Label>
+              <Input
+                type="number"
+                id="esfuerzo"
+                value={editingTask?.weight || 0}
+                max={5}
+                min={0}
+                onChange={(e) =>
+                  setEditingTask(
+                    editingTask
+                      ? {
+                          ...editingTask,
+                          weight: Math.min(
+                            5,
+                            Math.max(0, Number(e.target.value)),
+                          ),
                         }
                       : null,
                   )

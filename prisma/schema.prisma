@@ -16,33 +16,37 @@ model User {
   password   String
   isAdmin    Boolean @default(false)
   isVerified Boolean @default(false)
-
+  isActive   Boolean @default(true)
+  
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
   organizations UserOrganization[] // Relación hacia UserOrganization
   tasks         Task[]             @relation("UserTasks")
   taskRatings   TaskRating[]
+  otps          OTP[]             // New relation to OTP model
+  createdOrgs   Organization[]     @relation("CreatedByUser") // Nueva relación
 }
 
 // Modelo organizations
 model Organization {
-  id          Int                @id @default(autoincrement())
+  id          String             @id @default(uuid())
   name        String             @unique
   createdById Int
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
-  users       UserOrganization[]
-  tasks       Task[]             @relation("OrganizationTasks")
-  versions    Version[]          @relation("OrganizationVersions")
+  users     UserOrganization[] @relation("OrganizationToUserOrganization")
+  tasks     Task[]            @relation("OrganizationToTask")
+  versions  Version[]         @relation("OrganizationToVersion")
+  createdBy   User              @relation("CreatedByUser", fields: [createdById], references: [id]) // Nueva relación
 }
 
 // Tabla de relación user_organizations
 model UserOrganization {
   userId         Int
-  organizationId Int
+  organizationId String // Cambiado a String
   weight         Int // Peso del cliente dado por el admin
   User           User         @relation(fields: [userId], references: [id])
-  Organization   Organization @relation(fields: [organizationId], references: [id])
+  organization Organization @relation("OrganizationToUserOrganization", fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@id([userId, organizationId])
 }
@@ -56,12 +60,12 @@ model Task {
   startDate      DateTime
   endDate        DateTime
   progress       Float
-  organizationId Int
+  organizationId String // Cambiado a String
   createdById    Int
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  organization Organization  @relation("OrganizationTasks", fields: [organizationId], references: [id])
+  organization   Organization @relation("OrganizationToTask", fields: [organizationId], references: [id], onDelete: Cascade)
   createdBy    User          @relation("UserTasks", fields: [createdById], references: [id])
   taskRatings  TaskRating[]
   versionTasks VersionTask[]
@@ -74,8 +78,8 @@ model Task {
 model VersionTask {
   versionId Int
   taskId    Int
-  Version   Version @relation(fields: [versionId], references: [id])
-  Task      Task    @relation(fields: [taskId], references: [id])
+  Version   Version @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  Task      Task    @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@id([versionId, taskId])
 }
@@ -88,8 +92,8 @@ model TaskRating {
   clientSatisfaction Int? @default(0) @map("client_satisfaction")
   clientWeight       Int? @default(0) @map("client_weight")
   effort             Int? @default(0)
-  task               Task @relation(fields: [taskId], references: [id])
-  user               User @relation(fields: [userId], references: [id])
+  task               Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user               User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([taskId, userId])
 }
@@ -97,10 +101,24 @@ model TaskRating {
 // Modelo versions
 model Version {
   id             Int           @id @default(autoincrement())
-  organizationId Int
-  versionNumber  Int
+  organizationId String
+  versionName  String
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
-  organization   Organization  @relation("OrganizationVersions", fields: [organizationId], references: [id])
+  organization   Organization @relation("OrganizationToVersion", fields: [organizationId], references: [id], onDelete: Cascade)
   versionTasks   VersionTask[]
+}
+
+model OTP {
+  id        Int      @id @default(autoincrement())
+  code      String
+  email     String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  isUsed    Boolean  @default(false)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([email, isUsed, expiresAt]) // Índice compuesto para búsquedas eficientes
+  @@index([code, isUsed]) // Para validaciones rápidas de código
 }
