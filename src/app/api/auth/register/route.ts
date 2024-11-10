@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Crea el usuario en la base de datos
-    await prisma.user.create({
+    const user = await prisma.user.create({
       data: {
         username,
         email,
@@ -37,30 +37,43 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Genera un codigo de confirmación
-    const confirmationCode = Math.floor(100000 + Math.random() * 900000);
+    // Genera un codigo de confirmacion
+    const confirmationCode = Math.floor(
+      100000 + Math.random() * 900000,
+    ).toString();
+
+    // Almacena el codigo OTP en la base de datos
+    await prisma.oTP.create({
+      data: {
+        code: confirmationCode,
+        email,
+        isUsed: false,
+        expiresAt: new Date("2025-02-01T00:00:00Z"), // Establece una fecha predeterminada para cumplir con el esquema
+        userId: user.id,
+      },
+    });
 
     // Configura el transporter para nodemailer
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
-        user: "nexttaskmanager@gmail.com", // El correo del remitente
-        pass: process.env.GMAIL_APP_PASSWORD, // contrasena de aplicacion de Gmail
+        user: "nexttaskmanager@gmail.com",
+        pass: process.env.GMAIL_APP_PASSWORD,
       },
     });
 
     // Configura el contenido del correo
     const mailOptions = {
-      from: "nexttaskmanager@gmail.com", // El remitente
-      to: email, // El correo del usuario registrado
+      from: "nexttaskmanager@gmail.com",
+      to: email,
       subject: "Confirmación de Registro",
-      text: `Hola ${username}, tu código de confirmación es: ${confirmationCode}`,
+      text: `Hola ${username}, tu codigo de confirmación es: ${confirmationCode}`,
     };
 
     // Enviar el correo
     try {
       await transporter.sendMail(mailOptions);
-      console.log("Correo enviado con éxito");
+      console.log("Correo enviado con exito");
     } catch (error) {
       console.error("Error al enviar correo:", error);
     }

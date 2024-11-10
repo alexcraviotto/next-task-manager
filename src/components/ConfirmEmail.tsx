@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -9,32 +9,123 @@ import {
   InputOTPGroup,
   InputOTPSlot,
 } from "@/components/ui/input-otp";
+import { useSession } from "next-auth/react"; // Importar hook para la sesión
 
 export default function ConfirmEmail() {
+  const { data: session } = useSession(); // Usar el hook useSession para obtener la sesión
   const [showOTP, setShowOTP] = useState(false);
   const [otp, setOtp] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [otpFromServer, setOtpFromServer] = useState<string | null>(null);
   const router = useRouter();
 
-  // Define el OTP correcto para fines de prueba
-  const correctOTP = "123456";
-
-  const handleContinueClick = () => {
-    if (showOTP) {
-      if (otp === correctOTP) {
-        router.push("/success"); // Redirige a la pagina de exito
-      } else {
-        setErrorMessage("El código introducido no es válido.");
+  // Función para obtener OTP del servidor
+  const fetchOtp = async () => {
+    try {
+      if (!session?.user?.email) {
+        setErrorMessage("No se encontró el correo en la sesión.");
+        console.log("Error: No se encontró el correo en la sesión.");
+        return;
       }
-    } else {
-      setShowOTP(true); // Muestra el OTP si no se ha mostrado aun
+
+      console.log("Intentando obtener OTP para el correo:", session.user.email);
+
+      const response = await fetch("/api/users/verify-email", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      const data = await response.json();
+      console.log("Respuesta del servidor al obtener OTP:", data);
+
+      if (response.ok) {
+        setOtpFromServer(data.otp); // Guardar OTP recibido
+        console.log("OTP recibido del servidor:", data.otp);
+      } else {
+        setErrorMessage(data.message || "Error al obtener el OTP");
+        console.log(
+          "Error al obtener OTP:",
+          data.message || "Error desconocido",
+        );
+      }
+    } catch (error) {
+      setErrorMessage("Error de conexión. Inténtalo de nuevo.");
+      console.log("Error de conexión al obtener OTP:", error);
     }
   };
 
-  // Funcion para limpiar el campo OTP
+  useEffect(() => {
+    if (!showOTP && session?.user?.email) {
+      console.log(
+        "Iniciando fetchOtp, showOTP es falso y hay sesión con email.",
+      );
+      fetchOtp(); // Solo se realiza la llamada a la API cuando se muestra OTP
+    }
+  }, [showOTP, session?.user?.email]); // Dependencia en el correo de la sesión
+
+  const handleContinueClick = async () => {
+    console.log("Botón 'Continuar' presionado, estado showOTP:", showOTP);
+    if (showOTP) {
+      console.log(
+        "Comparando OTP ingresado:",
+        otp,
+        "con OTP del servidor:",
+        otpFromServer,
+      );
+      if (otp === otpFromServer) {
+        // Verificación exitosa del OTP, se llama a la API para actualizar el estado del usuario
+        if (session?.user?.email) {
+          // Verificación de que session y session.user no sean null
+          try {
+            const response = await fetch("/api/users/verify-email", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                email: session.user.email, // Aquí ya podemos usarlo sin error
+                otpCode: otp,
+              }),
+            });
+
+            const data = await response.json();
+            console.log("Respuesta de verificación de email:", data);
+
+            if (response.ok) {
+              //router.push("/dashboard/organization"); // Redirige a la pagina de dashboard/organization
+              window.location.href = "/dashboard/organization";
+            } else {
+              setErrorMessage(data.message || "Error al verificar el email.");
+              console.log(
+                "Error al verificar email:",
+                data.message || "Error desconocido",
+              );
+            }
+          } catch (error) {
+            setErrorMessage("Error de conexión. Inténtalo de nuevo.");
+            console.log("Error de conexión al verificar el email:", error);
+          }
+        } else {
+          setErrorMessage("No se encontró el correo en la sesión.");
+          console.log("No se encontró el correo en la sesión.");
+        }
+      } else {
+        setErrorMessage("El código introducido no es válido.");
+        console.log("El código introducido no es válido.");
+      }
+    } else {
+      setShowOTP(true); // Muestra el OTP si no se ha mostrado aún
+      console.log("showOTP se establece en true, OTP visible para el usuario.");
+    }
+  };
+
+  // Función para limpiar el campo OTP
   const handleClearOTP = () => {
     setOtp(""); // Limpia el estado del OTP
     setErrorMessage("");
+    console.log("OTP y mensaje de error limpiados.");
   };
 
   return (
@@ -65,8 +156,11 @@ export default function ConfirmEmail() {
               <InputOTP
                 value={otp}
                 maxLength={6}
-                pattern={"^[0-9]*$"} // Acepta solo numeros
-                onChange={(e) => setOtp(e)} // Cambia aqui
+                pattern={"^[0-9]*$"} // Acepta solo números
+                onChange={(e) => {
+                  setOtp(e);
+                  console.log("OTP ingresado:", e);
+                }} // Cambia aquí
               >
                 <InputOTPGroup>
                   <InputOTPSlot index={0} />
@@ -98,7 +192,7 @@ export default function ConfirmEmail() {
         </Button>
         <Button
           className="w-full bg-white text-black border border-gray-300 hover:bg-gray-100"
-          onClick={() => router.back()} // Accion para volver a la pagina anterior
+          onClick={() => router.back()} // Acción para volver a la página anterior
         >
           Volver
         </Button>
