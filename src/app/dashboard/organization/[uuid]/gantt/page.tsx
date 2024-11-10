@@ -5,7 +5,6 @@ import { DashboardTitle } from "@/components/dashboard/DashboardTitle";
 import Gantt from "@/components/Gantt";
 import { Link, Task } from "dhtmlx-gantt";
 import { useTasks } from "@/hooks/useTasks";
-import { Loader2 } from "lucide-react";
 import { GanttSkeleton } from "@/components/dashboard/gantt/GanttSkeleton";
 import { motion } from "framer-motion";
 
@@ -13,7 +12,6 @@ export default function Dashboard({ params }: { params: { uuid: string } }) {
   const { uuid } = params;
   const { tasks, isLoading, error, updateTask } = useTasks(uuid);
 
- 
   const ganttTasks = {
     data: tasks.map((task) => ({
       id: task.id,
@@ -59,21 +57,20 @@ export default function Dashboard({ params }: { params: { uuid: string } }) {
     return (
       <DashboardStructure>
         <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        <DashboardTitle title="📊 Diagrama de Gantt" />
-      </motion.div>
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3, duration: 0.5 }}
-        className="mt-8"
-      >
-        <GanttSkeleton />
-      </motion.div>
-
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <DashboardTitle title="📊 Diagrama de Gantt" />
+        </motion.div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.5 }}
+          className="mt-8"
+        >
+          <GanttSkeleton />
+        </motion.div>
       </DashboardStructure>
     );
   }
