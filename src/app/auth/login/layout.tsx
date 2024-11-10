@@ -13,8 +13,6 @@
  */
 import Image from "next/image";
 import type { Metadata } from "next";
-import { Be_Vietnam_Pro } from "next/font/google";
-import Providers from "../../Providers";
 import "../../globals.css";
 
 // Metadatos de la página para SEO
@@ -27,12 +25,6 @@ export const metadata: Metadata = {
 interface LayoutProps {
   children: React.ReactNode;
 }
-
-// Configuración de la fuente Be Vietnam Pro
-const beVietnamPro = Be_Vietnam_Pro({
-  subsets: ["latin"],
-  weight: ["400"],
-});
 
 /* 
   export default: 
@@ -48,31 +40,24 @@ const beVietnamPro = Be_Vietnam_Pro({
 
 export default function LoginLayout({ children }: Readonly<LayoutProps>) {
   return (
-    <html lang="es">
-      <body className={`${beVietnamPro.className} antialiased`}>
-        <Providers>
-          {/* Contenedor principal con altura mínima de pantalla completa */}
-          <div className="flex min-h-screen">
-            {/* Columna izquierda: Imagen de fondo */}
-            <div className="hidden md:block md:w-1/2 relative">
-              <Image
-                src="/background-inicio_sesion.png"
-                alt="Background"
-                fill
-                priority
-                className="object-cover"
-                quality={100}
-              />
-            </div>
+    <div className="flex min-h-screen">
+      {/* Columna izquierda: Imagen de fondo */}
+      <div className="hidden md:block md:w-1/2 relative">
+        <Image
+          src="/background-inicio_sesion.png"
+          alt="Background"
+          fill
+          priority
+          className="object-cover"
+          quality={100}
+        />
+      </div>
 
-            {/* Columna derecha: Contenido del login */}
-            <div className="w-full md:w-1/2 flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 bg-white">
-              {/* Contenedor del formulario */}
-              <div className="w-full max-w-md space-y-8">{children}</div>
-            </div>
-          </div>
-        </Providers>
-      </body>
-    </html>
+      {/* Columna derecha: Contenido del login */}
+      <div className="w-full md:w-1/2 flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 bg-white">
+        {/* Contenedor del formulario */}
+        <div className="w-full max-w-md space-y-8">{children}</div>
+      </div>
+    </div>
   );
 }

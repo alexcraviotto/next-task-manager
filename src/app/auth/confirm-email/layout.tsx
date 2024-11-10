@@ -1,12 +1,5 @@
 import type { Metadata } from "next";
-import { Be_Vietnam_Pro } from "next/font/google";
 import Image from "next/image";
-const beVietnamPro = Be_Vietnam_Pro({
-  subsets: ["latin"],
-  weight: ["400"],
-  display: "swap", // Añadir display swap para mejor manejo de fuentes
-});
-
 export const metadata: Metadata = {
   title: "Proceso de registro",
   description: "Registro del usuario",
@@ -37,11 +30,5 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <html lang="es" suppressHydrationWarning>
-      <body className={beVietnamPro.className}>
-        <AuthLayout>{children}</AuthLayout>
-      </body>
-    </html>
-  );
+  return <AuthLayout>{children}</AuthLayout>;
 }
