@@ -8,7 +8,6 @@ datasource db {
   url      = "file:./dev.db"
 }
 
-// Modelo users
 model User {
   id         Int     @id @default(autoincrement())
   username   String  @unique
@@ -17,41 +16,38 @@ model User {
   isAdmin    Boolean @default(false)
   isVerified Boolean @default(false)
   isActive   Boolean @default(true)
-  
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
-  organizations UserOrganization[] // Relación hacia UserOrganization
-  tasks         Task[]             @relation("UserTasks")
-  taskRatings   TaskRating[]
-  otps          OTP[]             // New relation to OTP model
-  createdOrgs   Organization[]     @relation("CreatedByUser") // Nueva relación
+
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  tasks            Task[]             @relation("UserTasks")
+  taskRatings      TaskRating[]
+  otps             OTP[] // New relation to OTP model
+  createdOrgs      Organization[]     @relation("CreatedByUser") // Nueva relación
+  UserOrganization UserOrganization[]
 }
 
-// Modelo organizations
 model Organization {
   id          String             @id @default(uuid())
   name        String             @unique
   createdById Int
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
-  users     UserOrganization[] @relation("OrganizationToUserOrganization")
-  tasks     Task[]            @relation("OrganizationToTask")
-  versions  Version[]         @relation("OrganizationToVersion")
-  createdBy   User              @relation("CreatedByUser", fields: [createdById], references: [id]) // Nueva relación
+  users       UserOrganization[] @relation("OrganizationToUserOrganization")
+  tasks       Task[]             @relation("OrganizationToTask")
+  versions    Version[]          @relation("OrganizationToVersion")
+  createdBy   User               @relation("CreatedByUser", fields: [createdById], references: [id]) // Nueva relación
 }
 
-// Tabla de relación user_organizations
 model UserOrganization {
   userId         Int
   organizationId String // Cambiado a String
   weight         Int // Peso del cliente dado por el admin
   User           User         @relation(fields: [userId], references: [id])
-  organization Organization @relation("OrganizationToUserOrganization", fields: [organizationId], references: [id], onDelete: Cascade)
+  organization   Organization @relation("OrganizationToUserOrganization", fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@id([userId, organizationId])
 }
 
-// Modelo tasks
 model Task {
   id             Int      @id @default(autoincrement())
   name           String
@@ -65,7 +61,7 @@ model Task {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  organization   Organization @relation("OrganizationToTask", fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization  @relation("OrganizationToTask", fields: [organizationId], references: [id], onDelete: Cascade)
   createdBy    User          @relation("UserTasks", fields: [createdById], references: [id])
   taskRatings  TaskRating[]
   versionTasks VersionTask[]
@@ -74,7 +70,6 @@ model Task {
   dependentOn  Task[] @relation("TaskDependencies")
 }
 
-// Tabla de relación version_tasks
 model VersionTask {
   versionId Int
   taskId    Int
@@ -84,7 +79,6 @@ model VersionTask {
   @@id([versionId, taskId])
 }
 
-// Modelo task_ratings con restricciones
 model TaskRating {
   id                 Int  @id @default(autoincrement())
   taskId             Int
@@ -98,14 +92,13 @@ model TaskRating {
   @@unique([taskId, userId])
 }
 
-// Modelo versions
 model Version {
   id             Int           @id @default(autoincrement())
   organizationId String
-  versionName  String
+  versionName    String
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
-  organization   Organization @relation("OrganizationToVersion", fields: [organizationId], references: [id], onDelete: Cascade)
+  organization   Organization  @relation("OrganizationToVersion", fields: [organizationId], references: [id], onDelete: Cascade)
   versionTasks   VersionTask[]
 }
 

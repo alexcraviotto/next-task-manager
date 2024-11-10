@@ -43,7 +43,7 @@ export default function LoginPage() {
       });
 
       if (result?.ok) {
-        window.location.href = "/dashboard/organization";
+        window.location.href = "/organization";
       } else {
         // Manejo de diferentes tipos de errores
         switch (result?.error) {

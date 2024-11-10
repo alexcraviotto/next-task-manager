@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Iniciar Sesión",
-  description: "Accede a tu cuenta para continuar",
+  title: "Tus organizaciones",
+  description: "¡Checkea tus organizaciones!",
 };
 
-export default function LoginLayout({
+export default function DashboardLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
