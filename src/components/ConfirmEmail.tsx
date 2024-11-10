@@ -19,51 +19,54 @@ export default function ConfirmEmail() {
   const [otpFromServer, setOtpFromServer] = useState<string | null>(null);
   const router = useRouter();
 
-  // Función para obtener OTP del servidor
-  const fetchOtp = async () => {
-    try {
-      if (!session?.user?.email) {
-        setErrorMessage("No se encontró el correo en la sesión.");
-        console.log("Error: No se encontró el correo en la sesión.");
-        return;
-      }
-
-      console.log("Intentando obtener OTP para el correo:", session.user.email);
-
-      const response = await fetch("/api/users/verify-email", {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      const data = await response.json();
-      console.log("Respuesta del servidor al obtener OTP:", data);
-
-      if (response.ok) {
-        setOtpFromServer(data.otp); // Guardar OTP recibido
-        console.log("OTP recibido del servidor:", data.otp);
-      } else {
-        setErrorMessage(data.message || "Error al obtener el OTP");
-        console.log(
-          "Error al obtener OTP:",
-          data.message || "Error desconocido",
-        );
-      }
-    } catch (error) {
-      setErrorMessage("Error de conexión. Inténtalo de nuevo.");
-      console.log("Error de conexión al obtener OTP:", error);
-    }
-  };
-
   useEffect(() => {
+    // Movemos fetchOtp dentro del useEffect
+    const fetchOtp = async () => {
+      try {
+        if (!session?.user?.email) {
+          setErrorMessage("No se encontró el correo en la sesión.");
+          console.log("Error: No se encontró el correo en la sesión.");
+          return;
+        }
+
+        console.log(
+          "Intentando obtener OTP para el correo:",
+          session.user.email,
+        );
+
+        const response = await fetch("/api/users/verify-email", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        const data = await response.json();
+        console.log("Respuesta del servidor al obtener OTP:", data);
+
+        if (response.ok) {
+          setOtpFromServer(data.otp);
+          console.log("OTP recibido del servidor:", data.otp);
+        } else {
+          setErrorMessage(data.message || "Error al obtener el OTP");
+          console.log(
+            "Error al obtener OTP:",
+            data.message || "Error desconocido",
+          );
+        }
+      } catch (error) {
+        setErrorMessage("Error de conexión. Inténtalo de nuevo.");
+        console.log("Error de conexión al obtener OTP:", error);
+      }
+    };
+
     if (!showOTP && session?.user?.email) {
       console.log(
         "Iniciando fetchOtp, showOTP es falso y hay sesión con email.",
       );
       fetchOtp();
     }
-  }, [showOTP, session?.user?.email, fetchOtp]);
+  }, [showOTP, session?.user?.email]); // Ahora las dependencias son más limpias
 
   const handleContinueClick = async () => {
     console.log("Botón 'Continuar' presionado, estado showOTP:", showOTP);

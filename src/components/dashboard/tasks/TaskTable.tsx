@@ -63,6 +63,9 @@ export function TaskTable({
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   const handleAddTask = () => {
     const today = new Date().toISOString();
     const newTask: Omit<Task, "id" | "createdAt"> = {
@@ -75,6 +78,7 @@ export function TaskTable({
       dependencies: 0,
       weight: 0,
       organizationId: projectId,
+      effort: 0,
     };
     setEditingTask(newTask as Task);
     setIsDialogOpen(true);
@@ -85,19 +89,65 @@ export function TaskTable({
     setIsDialogOpen(true);
   };
 
+  const updateTaskRating = async (
+    taskId: number,
+    data: { organizationId?: string; effort?: number; clientWeight?: number },
+  ) => {
+    setIsLoading(true);
+    console.log("Loading: ", isLoading);
+    setError(null);
+    console.log("Error: ", error);
+    try {
+      const response = await fetch(`/api/tasks/${taskId}/feedback`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Error al actualizar la valoración");
+      }
+      return result;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error desconocido");
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSaveTask = async () => {
     if (!editingTask) return;
-
     try {
+      let updatedTask;
       if ("id" in editingTask) {
-        await onUpdateTask(editingTask.id, editingTask);
+        // Si estamos editando una tarea existente
+        updatedTask = await onUpdateTask(editingTask.id, editingTask);
+        // Actualizamos también la valoración si hay cambios en el esfuerzo o peso
+        if (
+          editingTask.effort !== undefined ||
+          editingTask.weight !== undefined
+        ) {
+          await updateTaskRating(editingTask.id, {
+            organizationId: projectId,
+            effort: editingTask.effort,
+            clientWeight: editingTask.weight,
+          });
+        }
       } else {
-        await onAddTask(editingTask);
+        // Si es una nueva tarea
+        updatedTask = await onAddTask(editingTask);
+        console.log("Tarea agregada:", updatedTask);
       }
       setIsDialogOpen(false);
       setEditingTask(null);
     } catch (error) {
       console.error("Error saving task:", error);
+      setError(
+        error instanceof Error ? error.message : "Error al guardar la tarea",
+      );
     }
   };
 
@@ -215,7 +265,7 @@ export function TaskTable({
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>
-              {editingTask && editingTask.id <= tasks.length
+              {(editingTask?.id ?? null)
                 ? "Editar Tarea"
                 : "Agregar Nueva Tarea"}
             </DialogTitle>
@@ -383,6 +433,32 @@ export function TaskTable({
               <Input
                 type="number"
                 id="peso"
+                value={editingTask?.weight || 0}
+                max={5}
+                min={0}
+                onChange={(e) =>
+                  setEditingTask(
+                    editingTask
+                      ? {
+                          ...editingTask,
+                          weight: Math.min(
+                            5,
+                            Math.max(0, Number(e.target.value)),
+                          ),
+                        }
+                      : null,
+                  )
+                }
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="esfuerzo" className="text-right">
+                Esfuerzo
+              </Label>
+              <Input
+                type="number"
+                id="esfuerzo"
                 value={editingTask?.weight || 0}
                 max={5}
                 min={0}
