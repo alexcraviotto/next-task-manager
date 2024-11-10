@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -43,7 +44,18 @@ export default function LoginPage() {
       });
 
       if (result?.ok) {
-        window.location.href = "/dashboard/organization";
+        // Comprobar si el email verificado
+        const res = await fetch("/api/users/verify-email");
+        const data = await res.json();
+
+        if (data?.verified) {
+          // Si el email verificado, redirigir al dashboard
+          //window.location.href = "/dashboard/organization";
+          router.replace("/dashboard/organization");
+        } else {
+          // Si el email no verificado, redirigir al componente OTP
+          router.replace("/auth/confirm-email");
+        }
       } else {
         // Manejo de diferentes tipos de errores
         switch (result?.error) {
@@ -104,19 +116,19 @@ export default function LoginPage() {
         placeholder="Contraseña"
         className="w-full p-3 mb-6 border border-gray-300 rounded-lg focus:outline-none focus:border-black"
       />
-      <button
+      <Button
         type="submit"
         className="w-full p-3 mb-4 bg-black text-white rounded-lg font-semibold hover:bg-gray-800 transition-colors"
       >
         Continuar
-      </button>
-      <button
+      </Button>
+      <Button
         type="button" // Añadido type="button" para evitar que envíe el formulario
         onClick={handleClick}
         className="w-full p-3 bg-white text-black rounded-lg font-semibold border-2 border-black hover:bg-gray-50 transition-colors"
       >
         ¿No tienes cuenta?
-      </button>
+      </Button>
     </form>
   );
 }
