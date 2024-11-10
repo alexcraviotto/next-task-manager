@@ -6,56 +6,42 @@ import { useSession } from "next-auth/react";
 import { useOrganizations } from "@/hooks/use-organizations";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function OrganizationsPage() {
   const [showJoinOrg, setShowJoinOrg] = useState(false);
   const { data } = useSession();
   const { organizations, loading, error } = useOrganizations();
-
-  console.log("🚀 ~ OrganizationsPage ~ data:", JSON.stringify(data));
   const [inviteCode, setInviteCode] = useState("");
   const router = useRouter();
   const [isJoining, setIsJoining] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const handleShowJoinOrg = () => {
-    setShowJoinOrg(true);
-  };
-
-  const handleDecline = () => {
-    setShowJoinOrg(false);
-  };
+  const handleShowJoinOrg = () => setShowJoinOrg(true);
+  const handleDecline = () => setShowJoinOrg(false);
 
   const handleJoin = async () => {
     if (!inviteCode.trim()) {
       setJoinError("El código de invitación es requerido");
       return;
     }
-
     setIsJoining(true);
     setJoinError(null);
 
     try {
       const response = await fetch("/api/organizations/join", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: inviteCode }),
       });
 
       const data = await response.json();
-
       if (!response.ok) {
         throw new Error(data.message || "Error al unirse a la organización");
       }
 
-      toast({
-        description: "Te has unido a la organización correctamente",
-      });
-
-      // Redirigir a la página de la organización
+      toast({ description: "Te has unido a la organización correctamente" });
       router.push(`/dashboard/organization/${data.organization.id}`);
     } catch (error) {
       setJoinError(
@@ -68,7 +54,6 @@ export default function OrganizationsPage() {
     }
   };
 
-  // Renderizado condicional para estados de carga y error
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -89,26 +74,33 @@ export default function OrganizationsPage() {
   }
 
   return (
-    <>
-      {/* Contenedor principal con altura mínima de pantalla completa */}
-      <div className="flex min-h-screen">
-        {/* Columna izquierda: Imagen de fondo */}
-        <div
-          className="hidden md:block md:w-1/2 bg-cover bg-center bg-no-repeat"
-          style={{
-            backgroundImage: 'url("/background-inicio_sesion.png")',
-            backgroundColor: "#f3f4f6", // Fallback color
-          }}
-          aria-hidden="true"
-        />
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      transition={{ duration: 0.5 }}
+      className="flex min-h-screen"
+    >
+      <div
+        className="hidden md:block md:w-1/2 bg-cover bg-center bg-no-repeat"
+        style={{
+          backgroundImage: 'url("/background-inicio_sesion.png")',
+          backgroundColor: "#f3f4f6",
+        }}
+        aria-hidden="true"
+      />
 
-        {/* Columna derecha: Contenido del login */}
-        <div className="w-full md:w-1/2 flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 bg-white">
-          {/* Contenedor del formulario */}
-          <div className="w-full max-w-md space-y-8">
-            <div className="p-6 max-w-md mx-auto">
+      <div className="w-full md:w-1/2 flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 bg-white">
+        <div className="w-full max-w-md space-y-8">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={showJoinOrg ? "joinView" : "mainView"}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ duration: 0.4 }}
+            >
               {!showJoinOrg ? (
-                // Vista principal de organizaciones
                 <>
                   <div className="mb-8">
                     <h1 className="text-2xl font-semibold flex items-center gap-2">
@@ -124,16 +116,17 @@ export default function OrganizationsPage() {
 
                   <div className="space-y-2">
                     {organizations.map((org) => (
-                      <button
+                      <motion.button
                         key={org.id}
-                        className="w-full text-left p-3 rounded-lg border border-gray-200 
-                         hover:bg-gray-50 transition-colors duration-150"
+                        className="w-full text-left p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors duration-150"
                         onClick={() =>
                           router.push(`/dashboard/organization/${org.id}`)
                         }
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
                       >
                         {org.name}
-                      </button>
+                      </motion.button>
                     ))}
                   </div>
 
@@ -148,7 +141,6 @@ export default function OrganizationsPage() {
                   </div>
                 </>
               ) : (
-                // Vista de unirse a organización
                 <div className="bg-white p-6 rounded-lg shadow-sm border">
                   <h2 className="text-xl font-semibold mb-4">
                     Unirse a Organización
@@ -168,9 +160,7 @@ export default function OrganizationsPage() {
                         setInviteCode(e.target.value);
                         setJoinError(null);
                       }}
-                      className={`w-full p-2 border rounded-md ${
-                        joinError ? "border-red-500" : "border-gray-300"
-                      }`}
+                      className={`w-full p-2 border rounded-md ${joinError ? "border-red-500" : "border-gray-300"}`}
                       placeholder="Introduce tu código de invitación"
                       disabled={isJoining}
                     />
@@ -186,17 +176,17 @@ export default function OrganizationsPage() {
                   </p>
 
                   <div className="flex gap-3">
-                    <button
+                    <Button
                       onClick={handleDecline}
-                      className="px-4 py-2 border rounded-md hover:bg-gray-50"
                       disabled={isJoining}
+                      className="border rounded-md hover:bg-gray-50"
                     >
                       Declinar
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       onClick={handleJoin}
-                      className="px-4 py-2 bg-black text-white rounded-md hover:bg-gray-800 disabled:opacity-50"
                       disabled={isJoining}
+                      className="bg-black text-white rounded-md hover:bg-gray-800"
                     >
                       {isJoining ? (
                         <>
@@ -206,14 +196,14 @@ export default function OrganizationsPage() {
                       ) : (
                         "Unirse"
                       )}
-                    </button>
+                    </Button>
                   </div>
                 </div>
               )}
-            </div>
-          </div>
+            </motion.div>
+          </AnimatePresence>
         </div>
       </div>
-    </>
+    </motion.div>
   );
 }
