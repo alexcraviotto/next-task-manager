@@ -61,9 +61,9 @@ export default function ConfirmEmail() {
       console.log(
         "Iniciando fetchOtp, showOTP es falso y hay sesión con email.",
       );
-      fetchOtp(); // Solo se realiza la llamada a la API cuando se muestra OTP
+      fetchOtp();
     }
-  }, [showOTP, session?.user?.email]); // Dependencia en el correo de la sesión
+  }, [showOTP, session?.user?.email, fetchOtp]);
 
   const handleContinueClick = async () => {
     console.log("Botón 'Continuar' presionado, estado showOTP:", showOTP);

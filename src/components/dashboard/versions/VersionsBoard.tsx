@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -60,11 +60,7 @@ export default function VersionsBoard({
   const [isApplying, setIsApplying] = useState(false);
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchVersions();
-  }, [organizationId]);
-
-  const fetchVersions = async () => {
+  const fetchVersions = useCallback(async () => {
     try {
       const response = await fetch(`/api/versions/${organizationId}`);
       if (response.ok) {
@@ -81,7 +77,11 @@ export default function VersionsBoard({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [organizationId, toast, setVersions, setIsLoading]);
+
+  useEffect(() => {
+    fetchVersions();
+  }, [fetchVersions]);
 
   const handleAddVersion = async () => {
     if (newVersionName.trim()) {
