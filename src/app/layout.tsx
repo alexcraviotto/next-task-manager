@@ -3,6 +3,7 @@ import "./globals.css";
 import { Be_Vietnam_Pro } from "next/font/google";
 import Providers from "./Providers";
 import { Toaster } from "@/components/ui/toaster";
+import Transition from "@/components/Transition";
 
 const beVietnamPro = Be_Vietnam_Pro({
   subsets: ["latin"],
@@ -22,7 +23,9 @@ export default function RootLayout({
   return (
     <html lang="es" suppressHydrationWarning>
       <body className={`${beVietnamPro.className} antialiased`}>
-        <Providers>{children}</Providers>
+        <Providers>
+          <Transition>{children}</Transition>
+        </Providers>
         <Toaster />
       </body>
     </html>
