@@ -19,6 +19,7 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { DashboardSkeleton } from "@/components/DashboardSkeleton";
 
 export default function Dashboard({ params }: { params: { uuid: string } }) {
   const router = useRouter();
@@ -69,12 +70,19 @@ export default function Dashboard({ params }: { params: { uuid: string } }) {
     }
   }, [params.uuid, router, session]);
 
-  if (loading) {
+  if (!session?.user?.isAdmin) {
     return (
       <DashboardStructure>
         <div className="flex h-full items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin" />
         </div>
+      </DashboardStructure>
+    );
+  }
+  if (loading) {
+    return (
+      <DashboardStructure>
+        <DashboardSkeleton />
       </DashboardStructure>
     );
   }
