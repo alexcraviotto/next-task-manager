@@ -137,7 +137,7 @@ describe("Members API", () => {
       prismaClientMock.user.findUnique
         .mockResolvedValueOnce({
           id: 1,
-          email: "admin@example.com",
+          email: "test@gmail.com",
           createdOrgs: [{ id }],
           organizations: [{ id, weight: 5 }],
         })
@@ -197,83 +197,80 @@ describe("Members API", () => {
   });
 
   describe("PATCH /api/organizations/[id]/members", () => {
-    // it("should update member weight successfully", async () => {
-    //   // Mock datos de la sesión
-    //   (getServerSession as jest.Mock).mockResolvedValueOnce({
-    //     user: {
-    //       id: 1,
-    //       email: "admin@example.com",
-    //     },
-    //   });
+    //let mockReq: NextRequest;
+    //let mockOrgId: string;
+    //let mockUserOrganizationUpdate: jest.Mock;
 
-    //   // Mock datos de la request
-    //   const mockUpdateData = {
-    //     id: 1,
-    //     weight: 4,
-    //   };
-    //   (mockReq.json as jest.Mock).mockResolvedValueOnce(mockUpdateData);
+    /*beforeEach(() => {
+      mockReq = req;
+      mockOrgId = id;
+      mockUserOrganizationUpdate = prismaClientMock.userOrganization.update;
+    });
+    */
+    /*
+    it("should update member weight successfully", async () => {
+      const mockUpdateData = {
+        id: 1,
+        weight: 4,
+      };
+      (mockReq.json as jest.Mock).mockResolvedValueOnce(mockUpdateData);
+      (getServerSession as jest.Mock).mockResolvedValue(session);
 
-    //   // Mock respuesta de búsqueda de usuario
-    //   mockUserFindUnique.mockResolvedValueOnce({
-    //     id: 1,
-    //     email: "admin@example.com",
-    //     createdOrgs: [{ id: mockOrgId }],
-    //   });
+      prismaClientMock.user.findUnique.mockResolvedValueOnce({
+        id: 1,
+        email: "admin@example.com",
+        createdOrgs: [{ id: mockOrgId }],
+      });
 
-    //   // Mock respuesta de actualización
-    //   const mockUpdatedMember = {
-    //     userId: 1,
-    //     organizationId: mockOrgId,
-    //     weight: 4,
-    //     User: {
-    //       id: 1,
-    //       username: "testuser",
-    //       email: "member@example.com",
-    //       isAdmin: false,
-    //       createdAt: new Date("2023-01-01"),
-    //       updatedAt: new Date("2023-01-01"),
-    //     },
-    //   };
-    //   mockUserOrganizationUpdate.mockResolvedValueOnce(mockUpdatedMember);
+      const mockUpdatedMember = {
+        userId: 1,
+        organizationId: mockOrgId,
+        weight: 4,
+        User: {
+          id: 1,
+          username: "testuser",
+          email: "member@example.com",
+          isAdmin: false,
+          createdAt: new Date("2023-01-01"),
+          updatedAt: new Date("2023-01-01"),
+        },
+      };
 
-    //   // Ejecutar el endpoint
-    //   const response = await PATCH(mockReq as NextRequest, {
-    //     params: { id: mockOrgId },
-    //   });
-    //   const data = await response.json();
+      mockUserOrganizationUpdate.mockResolvedValueOnce(mockUpdatedMember);
 
-    //   // Verificar la respuesta
-    //   expect(response.status).toBe(200);
-    //   expect(mockUserOrganizationUpdate).toHaveBeenCalledWith({
-    //     where: {
-    //       userId_organizationId: {
-    //         userId: mockUpdateData.id,
-    //         organizationId: mockOrgId,
-    //       },
-    //     },
-    //     data: {
-    //       weight: mockUpdateData.weight,
-    //     },
-    //     include: {
-    //       User: true,
-    //     },
-    //   });
+      const response = await PATCH(mockReq as NextRequest, { params: { id: mockOrgId } });
+      const data = await response.json();
 
-    //   // Verificar el formato de la respuesta
-    //   expect(data).toEqual({
-    //     id: mockUpdatedMember.userId,
-    //     username: mockUpdatedMember.User.username,
-    //     email: mockUpdatedMember.User.email,
-    //     isAdmin: mockUpdatedMember.User.isAdmin,
-    //     createdAt: mockUpdatedMember.User.createdAt.toISOString(),
-    //     updatedAt: mockUpdatedMember.User.updatedAt.toISOString(),
-    //     weight: mockUpdatedMember.weight,
-    //   });
-    // });
+      expect(response.status).toBe(200);
+      expect(mockUserOrganizationUpdate).toHaveBeenCalledWith({
+        where: {
+          userId_organizationId: {
+            userId: mockUpdateData.id,
+            organizationId: mockOrgId,
+          },
+        },
+        data: {
+          weight: mockUpdateData.weight,
+        },
+        include: {
+          User: true,
+        },
+      });
 
+      expect(data).toEqual({
+        id: mockUpdatedMember.userId,
+        username: mockUpdatedMember.User.username,
+        email: mockUpdatedMember.User.email,
+        isAdmin: mockUpdatedMember.User.isAdmin,
+        createdAt: mockUpdatedMember.User.createdAt.toISOString(),
+        updatedAt: mockUpdatedMember.User.updatedAt.toISOString(),
+        weight: mockUpdatedMember.weight,
+      });
+    });
+*/
     it("should return 400 if weight is out of range", async () => {
       const updateData = {
-        id: 2, // Changed from memberId to id to match route expectations
+        id: 2,
         weight: -1,
       };
 
@@ -295,41 +292,37 @@ describe("Members API", () => {
   });
 
   describe("DELETE /api/organizations/[id]/members", () => {
-    // it("should delete member successfully", async () => {
-    //   // Create URL with searchParams
-    //   const url = new URL(
-    //     `http://localhost:3000/api/organizations/${id}/members`,
-    //   );
-    //   url.searchParams.append("memberId", "2");
-
-    //   const newReq = {
-    //     url: url.toString(),
-    //     nextUrl: url,
-    //   } as unknown as NextRequest;
-
-    //   prismaClientMock.user.findUnique.mockResolvedValueOnce({
-    //     id: 1,
-    //     email: "admin@example.com",
-    //     createdOrgs: [{ id }],
-    //     organizations: [{ id, weight: 5 }],
-    //   });
-
-    //   const res = await DELETE(newReq, { params: { id } });
-
-    //   expect(res.status).toBe(200);
-    //   expect(await res.json()).toEqual({
-    //     message: "Member deleted successfully",
-    //   });
-    //   expect(prismaClientMock.userOrganization.delete).toHaveBeenCalledWith({
-    //     where: {
-    //       userId_organizationId: {
-    //         userId: 2,
-    //         organizationId: id,
-    //       },
-    //     },
-    //   });
-    // });
-
+    /*it("should delete member successfully", async () => {
+      // Create URL with searchParams
+      const url = new URL(
+        `http://localhost:3000/api/organizations/${id}/members`
+      );
+      url.searchParams.append("memberId", "2");
+      const newReq = {
+        url: url.toString(),
+        nextUrl: url,
+      } as unknown as NextRequest;
+      prismaClientMock.user.findUnique.mockResolvedValueOnce({
+        id: 1,
+        email: "admin@example.com",
+        createdOrgs: [{ id }],
+        organizations: [{ id, weight: 5 }],
+      });
+      const res = await DELETE(newReq, { params: { id } });
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({
+        message: "Member deleted successfully",
+      });
+      expect(prismaClientMock.userOrganization.delete).toHaveBeenCalledWith({
+        where: {
+          userId_organizationId: {
+            userId: 2,
+            organizationId: id,
+          },
+        },
+      });
+    });
+    */
     it("should return 400 if userId is not provided", async () => {
       // Create URL without searchParams
       const url = new URL(
