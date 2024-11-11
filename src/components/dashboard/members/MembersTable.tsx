@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -30,13 +30,19 @@ import { Member } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 
 interface MembersTableProps {
-  organizationId: string;
   members: Member[];
+  organizationId: string;
   onAddMember: (
-    member: Omit<Member, "id" | "createdAt" | "updatedAt">,
+    member: Omit<Member, "id" | "createdAt" | "updatedAt" | "email">,
   ) => Promise<void>;
   onUpdateMember: (id: number, member: Partial<Member>) => Promise<void>;
   onDeleteMember: (id: number) => Promise<void>;
+}
+
+interface UserInfo {
+  id: number;
+  email: string;
+  username: string;
 }
 
 export function MembersTable({
@@ -49,6 +55,7 @@ export function MembersTable({
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
   const { toast } = useToast();
 
   const updateMemberWeight = async (userId: number, newWeight: number) => {
@@ -90,13 +97,154 @@ export function MembersTable({
     setEditingMember(member);
     setIsDialogOpen(true);
   };
+  useEffect(() => {
+    if (!isDialogOpen) {
+      setEditingMember(null);
+      setFormErrors({});
+    }
+  }, [isDialogOpen]);
+  async function fetchUserByUsername(
+    username: string,
+  ): Promise<UserInfo | null> {
+    try {
+      if (!username.trim()) {
+        toast({
+          description: "Por favor, ingrese un nombre de usuario",
+          variant: "destructive",
+        });
+        return null;
+      }
+
+      // Verificar que organizationId exista
+      if (!organizationId) {
+        toast({
+          description: "ID de organización no válido",
+          variant: "destructive",
+        });
+        return null;
+      }
+
+      const response = await fetch(
+        `/api/organizations/${organizationId}/invite?username=${encodeURIComponent(
+          username.trim(),
+        )}`,
+        {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          toast({
+            description: "Usuario no encontrado",
+            variant: "destructive",
+          });
+          return null;
+        }
+        await response.json();
+        //toast.error(error.message || "Error al buscar usuario");
+        return null;
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error("Error fetching user info:", error);
+      toast({
+        description: "Error al buscar usuario",
+        variant: "destructive",
+      });
+      return null;
+    }
+  }
 
   const handleSaveMember = async () => {
+    console.log("editingMember:", editingMember);
     if (!editingMember) return;
+
+    if (!organizationId) {
+      //toast.error("ID de organización no válido");
+      toast({
+        description: "ID de organización no válido",
+        variant: "destructive",
+      });
+      return;
+    }
+    console.log("HOLA");
+
+    setIsLoading(true);
 
     try {
       if (editingMember.id === -1) {
-        await onAddMember(editingMember);
+        // Validar el nombre de usuario
+        if (!editingMember.username.trim()) {
+          toast({
+            description: "Por favor ingrese un nombre de usuario",
+            variant: "destructive",
+          });
+          setIsLoading(false);
+          return;
+        }
+        // Buscar información del usuario
+        const userInfo = await fetchUserByUsername(editingMember.username);
+        if (!userInfo) {
+          setIsLoading(false);
+          toast({
+            description: "Usuario no encontrado",
+            variant: "destructive",
+          });
+          console.log("Usuario no encontrado");
+          return;
+        }
+
+        // Realizar la invitación
+        const response = await fetch(
+          `/api/organizations/${organizationId}/invite`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userId: userInfo.id,
+              organizationId: organizationId,
+              weight: editingMember.weight || 0,
+              isAdmin: editingMember.isAdmin || false,
+            }),
+          },
+        );
+
+        // Log para debug
+        console.log("Request payload:", {
+          userId: userInfo.id,
+          organizationId: Number(organizationId),
+          weight: editingMember.weight || 0,
+          isAdmin: editingMember.isAdmin || false,
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          toast({
+            description: error.message || "Error al invitar al usuario",
+            variant: "destructive",
+          });
+
+          throw new Error(error.message || "Error al invitar al usuario");
+        }
+
+        const result = await response.json();
+        console.log("Response:", result); // Log para debug
+
+        // Si todo sale bien, actualizar la UI
+        await onAddMember({
+          username: userInfo.username,
+          isAdmin: editingMember.isAdmin || false,
+          weight: editingMember.weight || 0,
+        });
+
+        toast({
+          description: "Miembro agregado exitosamente",
+          variant: "default",
+        });
+        setIsDialogOpen(false);
       } else {
         // Primero actualizamos el peso si ha cambiado
         const currentMember = members.find((m) => m.id === editingMember.id);
@@ -135,7 +283,7 @@ export function MembersTable({
   };
 
   const handleAddMember = () => {
-    const newMember: Member = {
+    setEditingMember({
       id: -1,
       username: "",
       email: "",
@@ -143,8 +291,7 @@ export function MembersTable({
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       weight: 0,
-    };
-    setEditingMember(newMember);
+    });
     setIsDialogOpen(true);
   };
 
@@ -260,7 +407,6 @@ export function MembersTable({
         <Plus className="h-4 w-4" />
         Agregar Miembro
       </Button>
-
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -275,42 +421,28 @@ export function MembersTable({
               <Label htmlFor="username" className="text-right">
                 Usuario
               </Label>
-              <Input
-                id="username"
-                value={editingMember?.username || ""}
-                onChange={(e) =>
-                  setEditingMember(
-                    editingMember
-                      ? {
-                          ...editingMember,
-                          username: e.target.value,
-                        }
-                      : null,
-                  )
-                }
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="email" className="text-right">
-                Email
-              </Label>
-              <Input
-                id="email"
-                type="email"
-                value={editingMember?.email || ""}
-                onChange={(e) =>
-                  setEditingMember(
-                    editingMember
-                      ? {
-                          ...editingMember,
-                          email: e.target.value,
-                        }
-                      : null,
-                  )
-                }
-                className="col-span-3"
-              />
+              <div className="col-span-3">
+                <Input
+                  id="username"
+                  value={editingMember?.username || ""}
+                  onChange={(e) =>
+                    setEditingMember(
+                      editingMember
+                        ? {
+                            ...editingMember,
+                            username: e.target.value,
+                          }
+                        : null,
+                    )
+                  }
+                  className={formErrors.username ? "border-red-500" : ""}
+                />
+                {formErrors.username && (
+                  <p className="text-red-500 text-sm mt-1">
+                    {formErrors.username}
+                  </p>
+                )}
+              </div>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="isAdmin" className="text-right">
@@ -355,7 +487,7 @@ export function MembersTable({
                           ...editingMember,
                           weight: Math.min(
                             5,
-                            Math.max(0, parseInt(e.target.value)),
+                            Math.max(0, parseInt(e.target.value) || 0),
                           ),
                         }
                       : null,

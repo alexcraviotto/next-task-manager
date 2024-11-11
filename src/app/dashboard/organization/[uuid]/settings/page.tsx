@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -25,12 +25,7 @@ const formSchema = z.object({
 });
 
 type FormValues = z.infer<typeof formSchema>;
-interface User {
-  username: string;
-  email: string;
-  password: string;
-  id: string;
-}
+
 export default function Settings({
   params,
 }: {
@@ -47,116 +42,18 @@ export default function Settings({
       password: "",
     },
   });
-  const [user, setUser] = useState<User | null>(null);
-
-  // Esto es lo añadido
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        setIsLoading(true);
-        const response = await fetch("/api/users/me");
-        const result = await response.json();
-
-        if (!response.ok) {
-          throw new Error(result.error || "Failed to fetch user");
-        }
-        console.log(
-          "🚀 ~ fetchUser ~ result.user:",
-          JSON.stringify(result.user),
-        );
-
-        setUser(result.user);
-        form.reset(result.user);
-      } catch (error) {
-        console.error("🚀 ~ fetchUser ~ error:", error);
-        toast({
-          description:
-            error instanceof Error ? error.message : "Failed to fetch user",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchUser();
-  }, [form, toast]);
 
   const onSubmit = async (data: FormValues) => {
     try {
       setIsLoading(true);
-
-      // Llamada al endpoint
-      const response = await fetch(
-        `/api/dashboard/proyects/${user?.id}/settings/update-profile`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(data),
-        },
-      );
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        // Si hay errores de validación del servidor
-        if (response.status === 400 && result.errors) {
-          // Mostrar el primer error de validación
-          toast({
-            description: result.errors[0],
-            variant: "destructive",
-          });
-          return;
-        }
-
-        throw new Error(result.error || "Failed to update profile");
-      }
-
-      // Mostrar mensaje de éxito
-      toast({
-        description: result.message || "Profile updated successfully",
-      });
+      console.log(JSON.stringify(data));
+      // TODO: Implement your API call here
+      await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulated API call
+      toast({ description: "Profile updated successfully" });
     } catch (error) {
       console.error("🚀 ~ onSubmit ~ error:", error);
       toast({
         description: "Failed to update profile",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleDeleteAccount = async () => {
-    try {
-      setIsLoading(true);
-      const response = await fetch(
-        `/api/dashboard/proyects/${user?.id}/settings/update-profile`,
-        {
-          method: "DELETE",
-        },
-      );
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || "Failed to delete account");
-      }
-
-      // Mostrar mensaje de éxito
-      toast({
-        description: result.message || "Account deleted successfully",
-      });
-
-      // Redirigir al usuario al login
-      window.location.href = "/login";
-    } catch (error) {
-      console.error("Account deletion error:", error);
-      toast({
-        description:
-          error instanceof Error ? error.message : "Failed to delete account",
         variant: "destructive",
       });
     } finally {
@@ -174,11 +71,11 @@ export default function Settings({
             name="username"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Usuario</FormLabel>
+                <FormLabel>Username</FormLabel>
                 <FormControl>
                   <Input
                     {...field}
-                    placeholder="Introduce tu usuario"
+                    placeholder="Enter your username"
                     disabled={isLoading}
                   />
                 </FormControl>
@@ -197,7 +94,7 @@ export default function Settings({
                   <Input
                     {...field}
                     type="email"
-                    placeholder="Introduce tu correo electrónico"
+                    placeholder="Enter your email"
                     disabled={isLoading}
                   />
                 </FormControl>
@@ -211,34 +108,27 @@ export default function Settings({
             name="password"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Nueva Contraseña</FormLabel>
+                <FormLabel>Password</FormLabel>
                 <FormControl>
-                  <Input {...field} type="password" disabled={isLoading} />
+                  <Input
+                    {...field}
+                    type="password"
+                    placeholder="********"
+                    disabled={isLoading}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
 
-          <div className="flex justify-between space-x-4">
-            <Button
-              type="submit"
-              className="w-full bg-black hover:bg-black/90"
-              disabled={isLoading}
-            >
-              {isLoading ? "Actualizando..." : "Actualizar perfil"}
-            </Button>
-
-            <Button
-              type="button"
-              variant="destructive"
-              className="w-full"
-              onClick={handleDeleteAccount}
-              disabled={isLoading}
-            >
-              {isLoading ? "Eliminando..." : "Eliminar cuenta"}
-            </Button>
-          </div>
+          <Button
+            type="submit"
+            className="w-full bg-black hover:bg-black/90"
+            disabled={isLoading}
+          >
+            {isLoading ? "Updating..." : "Update Profile"}
+          </Button>
         </form>
       </Form>
     </DashboardStructure>

@@ -40,9 +40,11 @@ export default function Dashboard() {
       >
         <MembersTable
           members={members}
-          onAddMember={addMember}
+          organizationId={organizationId}
           onUpdateMember={updateMember}
           onDeleteMember={deleteMember}
+          onAddMember={addMember}
+          on
         />
       </motion.div>
     </DashboardStructure>
