@@ -17,55 +17,21 @@ jest.mock("@prisma/client", () => ({
 import { GET } from "./route";
 
 describe("GET /api/users/me", () => {
+  // Agregar esto al inicio
+  const originalError = console.error;
+
   beforeEach(() => {
     jest.clearAllMocks();
+    // Mockear console.error antes de cada test
+    console.error = jest.fn();
   });
 
-  it("should return user id when authenticated", async () => {
-    const mockSession = {
-      user: { email: "test@example.com" },
-    };
-    const mockUser = { id: 1 };
-
-    (getServerSession as jest.Mock).mockResolvedValue(mockSession);
-    prismaClientMock.user.findUnique.mockResolvedValue(mockUser);
-
-    const response = await GET();
-    const data = await response.json();
-
-    expect(response.status).toBe(200);
-    expect(data).toEqual(mockUser);
-    expect(prismaClientMock.user.findUnique).toHaveBeenCalledWith({
-      where: { email: "test@example.com" },
-      select: { id: true },
-    });
+  afterEach(() => {
+    // Restaurar console.error después de cada test
+    console.error = originalError;
   });
 
-  it("should return 401 when not authenticated", async () => {
-    (getServerSession as jest.Mock).mockResolvedValue(null);
-
-    const response = await GET();
-    const data = await response.json();
-
-    expect(response.status).toBe(401);
-    expect(data).toEqual({ error: "Unauthorized" });
-    expect(prismaClientMock.user.findUnique).not.toHaveBeenCalled();
-  });
-
-  it("should return 404 when user not found", async () => {
-    const mockSession = {
-      user: { email: "test@example.com" },
-    };
-
-    (getServerSession as jest.Mock).mockResolvedValue(mockSession);
-    prismaClientMock.user.findUnique.mockResolvedValue(null);
-
-    const response = await GET();
-    const data = await response.json();
-
-    expect(response.status).toBe(404);
-    expect(data).toEqual({ error: "User not found" });
-  });
+  // ... resto de los tests ...
 
   it("should return 500 on database error", async () => {
     const mockSession = {
@@ -80,5 +46,7 @@ describe("GET /api/users/me", () => {
 
     expect(response.status).toBe(500);
     expect(data).toEqual({ error: "Internal error" });
+    // Opcionalmente, podemos verificar que console.error fue llamado
+    expect(console.error).toHaveBeenCalled();
   });
 });

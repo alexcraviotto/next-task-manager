@@ -27,8 +27,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Member } from "@/lib/types";
+import { useToast } from "@/hooks/use-toast";
 
 interface MembersTableProps {
+  organizationId: string;
   members: Member[];
   onAddMember: (
     member: Omit<Member, "id" | "createdAt" | "updatedAt">,
@@ -38,6 +40,7 @@ interface MembersTableProps {
 }
 
 export function MembersTable({
+  organizationId,
   members,
   onAddMember,
   onUpdateMember,
@@ -45,6 +48,43 @@ export function MembersTable({
 }: MembersTableProps) {
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
+
+  const updateMemberWeight = async (userId: number, newWeight: number) => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/member/${organizationId}/${userId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          weight: newWeight,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Error al actualizar el peso");
+      }
+      toast({
+        description: "Peso actualizado correctamente",
+        duration: 3000,
+      });
+      return true;
+    } catch (err) {
+      toast({
+        title: "Error",
+        description:
+          err instanceof Error ? err.message : "Error al actualizar el peso",
+        variant: "destructive",
+        duration: 5000,
+      });
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleEditMember = (member: Member) => {
     setEditingMember(member);
@@ -58,13 +98,39 @@ export function MembersTable({
       if (editingMember.id === -1) {
         await onAddMember(editingMember);
       } else {
+        // Primero actualizamos el peso si ha cambiado
+        const currentMember = members.find((m) => m.id === editingMember.id);
+        if (currentMember && currentMember.weight !== editingMember.weight) {
+          const weightUpdateSuccess = await updateMemberWeight(
+            editingMember.id,
+            editingMember.weight,
+          );
+
+          if (!weightUpdateSuccess) {
+            // Si falla la actualización del peso, no continuamos
+            return;
+          }
+        }
+
+        // Luego actualizamos el resto de la información del miembro
         await onUpdateMember(editingMember.id, editingMember);
       }
 
       setEditingMember(null);
       setIsDialogOpen(false);
+
+      toast({
+        description: "Miembro guardado correctamente",
+        duration: 3000,
+      });
     } catch (error) {
       console.error("Error saving member:", error);
+      toast({
+        title: "Error",
+        description: "Error al guardar los cambios del miembro",
+        variant: "destructive",
+        duration: 5000,
+      });
     }
   };
 
@@ -85,13 +151,29 @@ export function MembersTable({
   const handleDeleteMember = async (memberId: number) => {
     try {
       await onDeleteMember(memberId);
+      toast({
+        description: "Miembro eliminado correctamente",
+        duration: 3000,
+      });
     } catch (error) {
       console.error("Error deleting member:", error);
+      toast({
+        title: "Error",
+        description: "Error al eliminar el miembro",
+        variant: "destructive",
+        duration: 5000,
+      });
     }
   };
 
   return (
     <div className="w-full space-y-4 mt-10 relative">
+      {isLoading && (
+        <div className="absolute inset-0 bg-white/50 flex items-center justify-center z-50">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+        </div>
+      )}
+
       <div className="border rounded-lg overflow-x-auto overscroll-x-contain touch-pan-x scrollbar-thin scrollbar-thumb-gray-300">
         <div className="min-w-[320px] lg:w-full relative">
           <Table>
@@ -146,6 +228,7 @@ export function MembersTable({
                       variant="ghost"
                       size="icon"
                       onClick={() => handleEditMember(member)}
+                      disabled={isLoading}
                     >
                       <Pencil className="h-4 w-4" />
                       <span className="sr-only">Editar miembro</span>
@@ -154,6 +237,7 @@ export function MembersTable({
                       variant="ghost"
                       size="icon"
                       onClick={() => handleDeleteMember(member.id)}
+                      disabled={isLoading}
                       className="text-red-500 hover:text-red-700"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -166,7 +250,13 @@ export function MembersTable({
           </Table>
         </div>
       </div>
-      <Button variant="default" className="gap-2" onClick={handleAddMember}>
+
+      <Button
+        variant="default"
+        className="gap-2"
+        onClick={handleAddMember}
+        disabled={isLoading}
+      >
         <Plus className="h-4 w-4" />
         Agregar Miembro
       </Button>
@@ -175,7 +265,7 @@ export function MembersTable({
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>
-              {editingMember && editingMember.id <= members.length
+              {editingMember && editingMember.id !== -1
                 ? "Editar Miembro"
                 : "Agregar Nuevo Miembro"}
             </DialogTitle>
@@ -275,9 +365,13 @@ export function MembersTable({
               />
             </div>
           </div>
-          <Button onClick={handleSaveMember} className="w-full">
+          <Button
+            onClick={handleSaveMember}
+            className="w-full"
+            disabled={isLoading}
+          >
             <Save className="h-4 w-4 mr-2" />
-            {editingMember && editingMember.id <= members.length
+            {editingMember && editingMember.id !== -1
               ? "Guardar Cambios"
               : "Agregar Miembro"}
           </Button>

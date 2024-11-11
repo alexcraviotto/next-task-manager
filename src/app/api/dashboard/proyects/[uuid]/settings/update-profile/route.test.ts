@@ -4,6 +4,7 @@
 import "dotenv/config";
 import { NextRequest } from "next/server";
 import { hash } from "bcrypt";
+import { getServerSession } from "next-auth";
 
 // Mock de Prisma
 const prismaClientMock = {
@@ -18,22 +19,39 @@ jest.mock("@/lib/database", () => ({
   prisma: prismaClientMock,
 }));
 
+jest.mock("next-auth", () => ({
+  getServerSession: jest.fn(),
+}));
+
 jest.mock("bcrypt", () => ({
   hash: jest.fn().mockImplementation((str) => Promise.resolve(`hashed_${str}`)),
 }));
+
+// Mock de console.error para evitar ruido en los tests
+const originalError = console.error;
+beforeAll(() => {
+  console.error = jest.fn();
+});
+
+afterAll(() => {
+  console.error = originalError;
+});
 
 import { PATCH } from "./route";
 
 describe("PATCH /api/profile", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Configurar un usuario autenticado por defecto
+    (getServerSession as jest.Mock).mockResolvedValue({
+      user: { email: "test@example.com", id: 1 },
+    });
   });
 
   const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3001";
 
   /**
    * PRUEBA 1: Validación de datos (400)
-   * Corresponde a la primera validación en route.ts
    */
   it("should return 400 if username is too short", async () => {
     const userData = {
@@ -62,7 +80,7 @@ describe("PATCH /api/profile", () => {
   it("should return 400 if email format is invalid", async () => {
     const userData = {
       username: "validuser",
-      email: "invalid-email", // Email inválido
+      email: "invalid-email",
       password: "password123",
     };
 
@@ -108,10 +126,37 @@ describe("PATCH /api/profile", () => {
   });
 
   /**
-   * PRUEBA 2: Actualización exitosa (200)
-   * Corresponde al caso de éxito en route.ts
+   * PRUEBA 2: Autenticación (401)
    */
-  it("should successfully update user profile (status 200)", async () => {
+  it("should return 401 when not authenticated", async () => {
+    // Simular usuario no autenticado
+    (getServerSession as jest.Mock).mockResolvedValue(null);
+
+    const userData = {
+      username: "validuser",
+      email: "test@example.com",
+      password: "password123",
+    };
+
+    const req = new Request(`${baseUrl}/api/profile`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(userData),
+    }) as unknown as NextRequest;
+
+    const response = await PATCH(req);
+    const data = await response.json();
+
+    expect(response.status).toBe(401);
+    expect(data).toEqual({ error: "Unauthorized" });
+  });
+
+  /**
+   * PRUEBA 3: Actualización exitosa (200)
+   */
+  it("should successfully update user profile", async () => {
     const userData = {
       username: "newusername",
       email: "new@example.com",
@@ -170,8 +215,7 @@ describe("PATCH /api/profile", () => {
   });
 
   /**
-   * PRUEBA 3: Error interno (500)
-   * Corresponde al bloque catch en route.ts
+   * PRUEBA 4: Error interno (500)
    */
   it("should return 500 on database error", async () => {
     const userData = {

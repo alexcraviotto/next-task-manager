@@ -63,6 +63,9 @@ export function TaskTable({
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   const handleAddTask = () => {
     const today = new Date().toISOString();
     const newTask: Omit<Task, "id" | "createdAt"> = {
@@ -75,6 +78,7 @@ export function TaskTable({
       dependencies: 0,
       weight: 0,
       organizationId: projectId,
+      effort: 0,
     };
     setEditingTask(newTask as Task);
     setIsDialogOpen(true);
@@ -85,19 +89,68 @@ export function TaskTable({
     setIsDialogOpen(true);
   };
 
+  const updateTaskRating = async (
+    taskId: number,
+    data: { organizationId?: string; effort?: number; clientWeight?: number },
+  ) => {
+    setIsLoading(true);
+    console.log("Loading: ", isLoading);
+    setError(null);
+    console.log("Error: ", error);
+
+    console.log("organizationId: ", data.organizationId);
+    console.log("effort: ", data.effort);
+    console.log("clientWeight: ", data.clientWeight);
+    try {
+      const response = await fetch(`/api/tasks/${taskId}/feedback`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Error al actualizar la valoración");
+      }
+      return result;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error desconocido");
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSaveTask = async () => {
     if (!editingTask) return;
-
     try {
+      let updatedTask;
       if ("id" in editingTask) {
-        await onUpdateTask(editingTask.id, editingTask);
+        updatedTask = await onUpdateTask(editingTask.id, editingTask);
+
+        // Crear objeto de actualización con valores seguros
+        const updateData = {
+          organizationId: projectId,
+          effort: editingTask.effort ?? 0,
+          clientWeight: editingTask.weight ?? 0, // Usar 0 si weight es undefined
+        };
+
+        console.log("Valores a enviar:", updateData);
+
+        await updateTaskRating(editingTask.id, updateData);
       } else {
-        await onAddTask(editingTask);
+        // Si es una nueva tarea
+        updatedTask = await onAddTask(editingTask);
+        console.log("Tarea agregada:", updatedTask);
       }
       setIsDialogOpen(false);
       setEditingTask(null);
     } catch (error) {
       console.error("Error saving task:", error);
+      setError(
+        error instanceof Error ? error.message : "Error al guardar la tarea",
+      );
     }
   };
 
@@ -215,7 +268,7 @@ export function TaskTable({
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>
-              {editingTask && editingTask.id <= tasks.length
+              {(editingTask?.id ?? null)
                 ? "Editar Tarea"
                 : "Agregar Nueva Tarea"}
             </DialogTitle>
@@ -402,12 +455,36 @@ export function TaskTable({
                 className="col-span-3"
               />
             </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="esfuerzo" className="text-right">
+                Esfuerzo
+              </Label>
+              <Input
+                type="number"
+                id="esfuerzo"
+                value={editingTask?.effort || 0}
+                max={5}
+                min={0}
+                onChange={(e) =>
+                  setEditingTask(
+                    editingTask
+                      ? {
+                          ...editingTask,
+                          effort: Math.min(
+                            5,
+                            Math.max(0, Number(e.target.value)),
+                          ),
+                        }
+                      : null,
+                  )
+                }
+                className="col-span-3"
+              />
+            </div>
           </div>
           <Button onClick={handleSaveTask} className="w-full">
             <Save className="h-4 w-4 mr-2" />
-            {editingTask && editingTask.id <= tasks.length
-              ? "Guardar Cambios"
-              : "Agregar Tarea"}
+            {(editingTask?.id ?? null) ? "Guardar Cambios" : "Agregar Tarea"}
           </Button>
         </DialogContent>
       </Dialog>

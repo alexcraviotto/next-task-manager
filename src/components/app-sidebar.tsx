@@ -110,7 +110,7 @@ export function AppSidebar({ projectId }: { projectId: string | undefined }) {
         const response = await fetch("/api/users/me");
         if (response.ok) {
           const data = await response.json();
-          setUserId(data.id);
+          setUserId(data.user.id);
         }
       } catch (error) {
         console.error("Error fetching user id:", error);
