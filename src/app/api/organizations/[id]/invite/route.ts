@@ -6,7 +6,7 @@ import nodemailer from "nodemailer";
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
-
+  console.log("Session", session);
   if (!session?.user || !session.user.email || !session.user.isAdmin) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
@@ -64,22 +64,25 @@ export async function POST(req: NextRequest) {
 
     if (existingUserOrganization) {
       return NextResponse.json(
-        { message: "User is already a member of this organization" },
+        { message: "El usuario ya pertenece a la organización" },
         { status: 400 },
       );
     }
-
+    console.log(userId, organizationId);
     const user = await prisma.user.findUnique({
       where: { id: userId },
     });
 
+    console.log("User found:", user);
     if (!user) {
       return NextResponse.json({ message: "User not found" }, { status: 404 });
     }
-
+    console.log("LLEGAMOS");
     const organization = await prisma.organization.findUnique({
       where: { id: organizationId },
     });
+
+    console.log("organization", organization);
 
     if (!organization) {
       return NextResponse.json(
@@ -100,7 +103,7 @@ export async function POST(req: NextRequest) {
       from: "nexttaskmanager@gmail.com",
       to: user.email,
       subject: `Invitación a unirte a la organización ${organization.name}`,
-      text: `Hola ${user.username},\n\nTe hemos invitado a unirte a la organización "${organization.name}". Por favor, revisa tu cuenta para ver más detalles.`,
+      text: `Hola ${user.username},\n\nTe hemos invitado a unirte a la organización "${organization.name}". Por favor, introduce este id para entrar: ${organization.id}`,
     };
 
     await transporter.sendMail(mailOptions);

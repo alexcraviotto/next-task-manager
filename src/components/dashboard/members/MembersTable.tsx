@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -27,10 +27,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Member } from "@/lib/types";
+import { useToast } from "@/hooks/use-toast";
 
 interface MembersTableProps {
   members: Member[];
-  organizationId: number;
+  organizationId: string;
   onAddMember: (
     member: Omit<Member, "id" | "createdAt" | "updatedAt" | "email">,
   ) => Promise<void>;
@@ -48,32 +49,45 @@ export function MembersTable({
   members,
   organizationId,
   onAddMember,
-  //onUpdateMember,
+  onUpdateMember,
   onDeleteMember,
 }: MembersTableProps) {
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [userNotFound, setUserNotFound] = useState(false);
-
+  const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
+  const { toast } = useToast();
   const handleEditMember = (member: Member) => {
     setEditingMember(member);
     setIsDialogOpen(true);
     setUserNotFound(false);
   };
-
+  useEffect(() => {
+    if (!isDialogOpen) {
+      setEditingMember(null);
+      setUserNotFound(false);
+      setFormErrors({});
+    }
+  }, [isDialogOpen]);
   async function fetchUserByUsername(
     username: string,
   ): Promise<UserInfo | null> {
     try {
       if (!username.trim()) {
-        //toast.error("Por favor, ingrese un nombre de usuario");
+        toast({
+          description: "Por favor, ingrese un nombre de usuario",
+          variant: "destructive",
+        });
         return null;
       }
 
       // Verificar que organizationId exista
       if (!organizationId) {
-        // toast.error("ID de organización no válido");
+        toast({
+          description: "ID de organización no válido",
+          variant: "destructive",
+        });
         return null;
       }
 
@@ -90,7 +104,10 @@ export function MembersTable({
       if (!response.ok) {
         if (response.status === 404) {
           setUserNotFound(true);
-          //toast.error("Usuario no encontrado");
+          toast({
+            description: "Usuario no encontrado",
+            variant: "destructive",
+          });
           return null;
         }
         await response.json();
@@ -102,19 +119,27 @@ export function MembersTable({
       return await response.json();
     } catch (error) {
       console.error("Error fetching user info:", error);
-      //toast.error("Error al buscar información del usuario");
+      toast({
+        description: "Error al buscar usuario",
+        variant: "destructive",
+      });
       return null;
     }
   }
 
   const handleSaveMember = async () => {
+    console.log("editingMember:", editingMember);
     if (!editingMember) return;
 
-    // Verificar que organizationId exista
     if (!organizationId) {
       //toast.error("ID de organización no válido");
+      toast({
+        description: "ID de organización no válido",
+        variant: "destructive",
+      });
       return;
     }
+    console.log("HOLA");
 
     setIsLoading(true);
 
@@ -122,15 +147,22 @@ export function MembersTable({
       if (editingMember.id === -1) {
         // Validar el nombre de usuario
         if (!editingMember.username.trim()) {
-          //toast.error("Por favor, ingrese un nombre de usuario");
+          toast({
+            description: "Por favor ingrese un nombre de usuario",
+            variant: "destructive",
+          });
           setIsLoading(false);
           return;
         }
-
         // Buscar información del usuario
         const userInfo = await fetchUserByUsername(editingMember.username);
         if (!userInfo) {
           setIsLoading(false);
+          toast({
+            description: "Usuario no encontrado",
+            variant: "destructive",
+          });
+          console.log("Usuario no encontrado");
           return;
         }
 
@@ -142,7 +174,7 @@ export function MembersTable({
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               userId: userInfo.id,
-              organizationId: Number(organizationId), // Asegurarse de que sea número
+              organizationId: organizationId,
               weight: editingMember.weight || 0,
               isAdmin: editingMember.isAdmin || false,
             }),
@@ -159,6 +191,11 @@ export function MembersTable({
 
         if (!response.ok) {
           const error = await response.json();
+          toast({
+            description: error.message || "Error al invitar al usuario",
+            variant: "destructive",
+          });
+
           throw new Error(error.message || "Error al invitar al usuario");
         }
 
@@ -172,10 +209,13 @@ export function MembersTable({
           weight: editingMember.weight || 0,
         });
 
-        //toast.success("Miembro agregado exitosamente");
+        toast({
+          description: "Miembro agregado exitosamente",
+          variant: "default",
+        });
         setIsDialogOpen(false);
       } else {
-        // ... (código para actualizar miembro existente permanece igual)
+        await onUpdateMember(editingMember.id, editingMember);
       }
     } catch (error) {
       console.error("Error saving member:", error);
@@ -290,7 +330,6 @@ export function MembersTable({
         <Plus className="h-4 w-4" />
         Agregar Miembro
       </Button>
-
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -319,11 +358,11 @@ export function MembersTable({
                         : null,
                     )
                   }
-                  className={userNotFound ? "border-red-500" : ""}
+                  className={formErrors.username ? "border-red-500" : ""}
                 />
-                {userNotFound && (
+                {formErrors.username && (
                   <p className="text-red-500 text-sm mt-1">
-                    Usuario no encontrado
+                    {formErrors.username}
                   </p>
                 )}
               </div>
