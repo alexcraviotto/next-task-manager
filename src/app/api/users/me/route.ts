@@ -18,10 +18,10 @@ export async function GET() {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const userWithoutPassword = { ...user, password: undefined };
+    const userWithoutPassword = { ...user, password: "" };
     console.log("User: ", userWithoutPassword);
 
-    return NextResponse.json({ user }, { status: 200 });
+    return NextResponse.json({ user: userWithoutPassword }, { status: 200 });
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });

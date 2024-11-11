@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database";
 import { z } from "zod";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/authOptions";
 
 const updateTaskSchema = z.object({
   organizationId: z.string(),
@@ -10,16 +12,37 @@ const updateTaskSchema = z.object({
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { taskId: string } },
+  { params }: { params: { id: string } },
 ) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
     const body = await req.json();
+    console.log("🏆🏆body🏆🏆", body);
+
     const {
       organizationId,
       effort,
       clientWeight: newClientWeight,
     } = updateTaskSchema.parse(body);
-    const taskId = parseInt(params.taskId);
+
+    const taskId = parseInt(params.id, 10);
+    console.log("🏆🏆taskId convertido🏆🏆", taskId);
+
+    if (isNaN(taskId) || taskId <= 0) {
+      return NextResponse.json({ error: "Invalid task ID" }, { status: 400 });
+    }
 
     if (!effort && !newClientWeight) {
       return NextResponse.json(
@@ -30,25 +53,41 @@ export async function PATCH(
       );
     }
 
+    const userId = user.id;
+    let updatedRating;
+
     // Si se actualiza el esfuerzo
     if (effort !== undefined) {
-      await prisma.taskRating.updateMany({
+      updatedRating = await prisma.taskRating.upsert({
         where: {
-          taskId,
-          task: {
-            organizationId: organizationId,
+          taskId_userId: {
+            taskId: taskId,
+            userId: userId,
           },
         },
-        data: { effort },
+        update: {
+          effort: effort,
+        },
+        create: {
+          taskId: taskId,
+          userId: userId,
+          effort: effort,
+          clientSatisfaction: 0,
+          clientWeight: 0,
+        },
+        select: {
+          effort: true,
+          clientWeight: true,
+          clientSatisfaction: true,
+        },
       });
     }
 
     // Si se actualiza la valoración
     if (newClientWeight !== undefined) {
-      // 1. Obtener la valoración y satisfacción previas
       const previousRating = await prisma.taskRating.findFirst({
         where: {
-          taskId,
+          taskId: taskId,
           task: {
             organizationId: organizationId,
           },
@@ -66,7 +105,6 @@ export async function PATCH(
         );
       }
 
-      // 2. Calcular nueva satisfacción
       if (
         previousRating.clientSatisfaction === null ||
         previousRating.clientWeight === null
@@ -77,31 +115,72 @@ export async function PATCH(
         );
       }
 
-      let newSatisfaction = Math.round(
-        (previousRating.clientSatisfaction / previousRating.clientWeight) *
-          newClientWeight,
-      );
+      let newSatisfaction;
 
-      // 3. Normalizar el resultado entre 0 y 5
+      if (newClientWeight === 0) {
+        newSatisfaction = 0;
+      } else {
+        if (previousRating.clientWeight === 0) {
+          const organizationMembers = await prisma.userOrganization.findMany({
+            where: {
+              organizationId: organizationId,
+            },
+            select: {
+              weight: true,
+            },
+          });
+
+          let totalScore = 0;
+          organizationMembers.forEach((member) => {
+            totalScore += member.weight * newClientWeight;
+          });
+          newSatisfaction = totalScore;
+        } else {
+          newSatisfaction = Math.round(
+            (previousRating.clientSatisfaction / previousRating.clientWeight) *
+              newClientWeight,
+          );
+        }
+      }
+
       newSatisfaction = Math.min(5, Math.max(0, newSatisfaction));
 
-      // 4. Actualizar valoración y satisfacción
-      await prisma.taskRating.updateMany({
+      updatedRating = await prisma.taskRating.upsert({
         where: {
-          taskId,
-          task: {
-            organizationId: organizationId,
+          taskId_userId: {
+            taskId: taskId,
+            userId: userId,
           },
         },
-        data: {
+        update: {
           clientWeight: newClientWeight,
           clientSatisfaction: newSatisfaction,
+        },
+        create: {
+          taskId: taskId,
+          userId: userId,
+          clientWeight: newClientWeight,
+          clientSatisfaction: newSatisfaction,
+          effort: 0,
+        },
+        select: {
+          effort: true,
+          clientWeight: true,
+          clientSatisfaction: true,
         },
       });
     }
 
+    // Devolver los valores actualizados
     return NextResponse.json(
-      { message: "Task updated successfully" },
+      {
+        message: "Task updated successfully",
+        rating: {
+          effort: updatedRating?.effort,
+          clientWeight: updatedRating?.clientWeight,
+          clientSatisfaction: updatedRating?.clientSatisfaction,
+        },
+      },
       { status: 200 },
     );
   } catch (error) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -62,10 +62,40 @@ export function TaskTable({
 }: TaskTableProps) {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // TaskRating
+  const [taskRatings, setTaskRatings] = useState<{
+    [key: number]: {
+      clientSatisfaction: number;
+      clientWeight: number;
+      effort: number;
+    };
+  }>({});
+
+  const loadTaskRatings = async (taskId: number) => {
+    try {
+      const response = await fetch(`/api/tasks/${taskId}/rating`);
+      if (!response.ok) throw new Error("Failed to fetch ratings");
+      const data = await response.json();
+      setTaskRatings((prev) => ({
+        ...prev,
+        [taskId]: data,
+      }));
+    } catch (error) {
+      console.error("Error loading task ratings:", error);
+    }
+  };
+
+  // Modifica el useEffect para cargar los ratings iniciales
+  useEffect(() => {
+    tasks.forEach((task) => {
+      loadTaskRatings(task.id);
+    });
+  }, [tasks]);
+
+  //
   const handleAddTask = () => {
     const today = new Date().toISOString();
     const newTask: Omit<Task, "id" | "createdAt"> = {
@@ -139,6 +169,9 @@ export function TaskTable({
         console.log("Valores a enviar:", updateData);
 
         await updateTaskRating(editingTask.id, updateData);
+
+        // Recargar los ratings después de actualizar
+        await loadTaskRatings(editingTask.id);
       } else {
         // Si es una nueva tarea
         updatedTask = await onAddTask(editingTask);
@@ -228,13 +261,13 @@ export function TaskTable({
                   {task.dependencies}
                 </TableCell>
                 <TableCell className="p-2 sm:p-4 text-xs sm:text-sm">
-                  0
+                  {taskRatings[task.id]?.clientSatisfaction ?? 0}
                 </TableCell>
                 <TableCell className="p-2 sm:p-4 text-xs sm:text-sm">
-                  {task.weight ?? 0}
+                  {taskRatings[task.id]?.clientWeight ?? 0}
                 </TableCell>
                 <TableCell className="p-2 sm:p-4 text-xs sm:text-sm">
-                  0
+                  {taskRatings[task.id]?.effort ?? 0}
                 </TableCell>
                 <TableCell className="p-2 sm:p-4 text-xs sm:text-sm sticky right-0 bg-white">
                   <Button
