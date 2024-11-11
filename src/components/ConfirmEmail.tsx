@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,7 @@ export default function ConfirmEmail() {
   const router = useRouter();
 
   // Función para obtener OTP del servidor
-  const fetchOtp = async () => {
+  const fetchOtp = useCallback(async () => {
     try {
       if (!session?.user?.email) {
         setErrorMessage("No se encontró el correo en la sesión.");
@@ -54,15 +54,27 @@ export default function ConfirmEmail() {
       setErrorMessage("Error de conexión. Inténtalo de nuevo.");
       console.log("Error de conexión al obtener OTP:", error);
     }
-  };
+  }, [session?.user?.email, setErrorMessage, setOtpFromServer]); // Incluir todas las dependencias
 
+  // useEffect con cleanup
   useEffect(() => {
-    if (!showOTP && session?.user?.email) {
-      console.log(
-        "Iniciando fetchOtp, showOTP es falso y hay sesión con email.",
-      );
-      fetchOtp();
-    }
+    let isMounted = true;
+    console.log("isMounted:", isMounted);
+
+    const initiateFetch = async () => {
+      if (!showOTP && session?.user?.email) {
+        console.log(
+          "Iniciando fetchOtp, showOTP es falso y hay sesión con email.",
+        );
+        await fetchOtp();
+      }
+    };
+
+    initiateFetch();
+
+    return () => {
+      isMounted = false;
+    };
   }, [showOTP, session?.user?.email, fetchOtp]);
 
   const handleContinueClick = async () => {

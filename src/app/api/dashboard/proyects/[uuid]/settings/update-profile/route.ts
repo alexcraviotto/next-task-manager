@@ -3,6 +3,8 @@ import { type Prisma } from ".prisma/client";
 import { hash } from "bcrypt";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/authOptions";
 
 // Tipos
 interface UpdateProfileRequest {
@@ -86,9 +88,12 @@ const validateProfileData = async (
 
 export async function PATCH(request: NextRequest) {
   try {
-    // Obtener el userId de la sesión actual
-    const userId = 1; // Esto debería venir de tu sistema de autenticación
+    const session = await getServerSession(authOptions);
 
+    if (!session || !session.user?.email) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const userId = Number(session.user.id);
     // 1. Extraer datos del body
     const data: UpdateProfileRequest = await request.json();
 

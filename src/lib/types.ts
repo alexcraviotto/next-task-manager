@@ -72,6 +72,7 @@ export interface Task {
   weight: number;
   organizationId: string;
   createdAt: string;
+  effort: number;
 }
 export interface Member {
   id: number;
