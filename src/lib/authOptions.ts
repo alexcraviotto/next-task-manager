@@ -21,7 +21,7 @@ export const authOptions: AuthOptions = {
           where: { email: credentials.email },
         });
 
-        if (!user) {
+        if (!user || !user.isActive) {
           throw new Error("User not found");
         }
 

@@ -19,9 +19,12 @@ import {
 import { useToast } from "@/hooks/use-toast";
 
 const formSchema = z.object({
-  username: z.string().min(3, "Username must be at least 3 characters"),
-  email: z.string().email("Please enter a valid email"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  username: z
+    .string()
+    .min(3, "Username must be at least 3 characters")
+    .optional(),
+  email: z.string().email("Please enter a valid email").optional(),
+  password: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -133,7 +136,7 @@ export default function Settings({
     try {
       setIsLoading(true);
       const response = await fetch(
-        `/api/dashboard/proyects/${user?.id}/settings/update-profile`,
+        `/api/dashboard/proyects/${user?.id}/settings/delete-profile`,
         {
           method: "DELETE",
         },
@@ -151,7 +154,7 @@ export default function Settings({
       });
 
       // Redirigir al usuario al login
-      window.location.href = "/login";
+      window.location.href = "/auth/login";
     } catch (error) {
       console.error("Account deletion error:", error);
       toast({

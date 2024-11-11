@@ -116,7 +116,7 @@ export async function PATCH(request: NextRequest) {
       updateData.email = data.email;
     }
 
-    if (data.password) {
+    if (data.password.length > 0) {
       updateData.password = await hash(data.password, 12);
     }
 
