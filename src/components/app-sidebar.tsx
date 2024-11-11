@@ -24,6 +24,7 @@ import { ChevronDown, Settings, Plus, Loader2, Trash2 } from "lucide-react";
 import CreateOrganization from "./dashboard/organization/createOrganization";
 import { useToast } from "@/hooks/use-toast";
 import { useOrganizations } from "@/hooks/use-organizations";
+
 import { useSession } from "next-auth/react";
 import {
   AlertDialog,
@@ -42,6 +43,7 @@ export function AppSidebar({ projectId }: { projectId: string | undefined }) {
   const [showCreateOrg, setShowCreateOrg] = useState(false);
   const { toast } = useToast();
   const { data } = useSession();
+  const [isAdmin, setIsAdmin] = useState(false);
   const { organizations, loading, error, addOrganization, removeOrganization } =
     useOrganizations();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -123,9 +125,14 @@ export function AppSidebar({ projectId }: { projectId: string | undefined }) {
   }, [data?.user]);
 
   useEffect(() => {
-    // Aqui comprobaremos si el uuid del parametro existe y pertenece al usuario
-  }, []);
+    if (data?.user) {
+      setIsAdmin(data.user.isAdmin);
+    }
+  }, [data]);
 
+  const isItemDisabled = (slug: string) => {
+    return !isAdmin && slug !== "tasks";
+  };
   return (
     <Sidebar>
       <SidebarHeader className="m-4">
@@ -206,8 +213,18 @@ export function AppSidebar({ projectId }: { projectId: string | undefined }) {
             <SidebarMenu className="space-y-4">
               {sidebarItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <button onClick={() => router.push(buildUrl(item.slug))}>
+                  <SidebarMenuButton
+                    asChild
+                    disabled={isItemDisabled(item.slug)}
+                  >
+                    <button
+                      onClick={() => router.push(buildUrl(item.slug))}
+                      className={
+                        isItemDisabled(item.slug)
+                          ? "opacity-50 cursor-not-allowed"
+                          : ""
+                      }
+                    >
                       <item.icon />
                       <span
                         className={`text-lg tracking-tight ${
