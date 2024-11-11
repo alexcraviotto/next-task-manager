@@ -33,11 +33,6 @@ export async function PUT(
     if (!task) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
-    const userId = parseInt(session.user.id);
-
-    if (task.createdById !== userId) {
-      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
-    }
 
     const updatedTask = await prisma.task.update({
       where: { id: parseInt(id) },

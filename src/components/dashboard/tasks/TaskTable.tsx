@@ -27,6 +27,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Task } from "@/lib/types";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ArrowUpDown } from "lucide-react";
 
 interface TaskTableProps {
   projectId: string;
@@ -195,8 +202,89 @@ export function TaskTable({
     }
   };
 
+  const [sortBy, setSortBy] = useState<
+    "satisfaction" | "effort" | "weight" | "none" | null
+  >("none");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+
+  const getSortedTasks = () => {
+    if (!sortBy || sortBy === "none") return tasks;
+
+    return [...tasks]
+      .sort((a, b) => {
+        const aRating = taskRatings[a.id] || {
+          clientSatisfaction: 0,
+          effort: 0,
+          clientWeight: 0,
+        };
+        const bRating = taskRatings[b.id] || {
+          clientSatisfaction: 0,
+          effort: 0,
+          clientWeight: 0,
+        };
+
+        let aValue = 0;
+        let bValue = 0;
+
+        switch (sortBy) {
+          case "satisfaction":
+            aValue = aRating.clientSatisfaction;
+            bValue = bRating.clientSatisfaction;
+            break;
+          case "effort":
+            aValue = aRating.effort;
+            bValue = bRating.effort;
+            break;
+          case "weight":
+            aValue = aRating.clientWeight;
+            bValue = bRating.clientWeight;
+            break;
+        }
+
+        return sortOrder === "asc" ? aValue - bValue : bValue - aValue;
+      })
+      .slice(0, 3); // Solo retorna los primeros 3 elementos cuando hay ordenamiento activo
+  };
+
+  const handleSort = (type: "satisfaction" | "effort" | "weight") => {
+    if (sortBy === type) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSortBy(type);
+      setSortOrder("desc");
+    }
+  };
+
   return (
     <div className="w-full space-y-4 mt-10 relative">
+      <div className="flex mb-4">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className="gap-2">
+              <ArrowUpDown className="h-4 w-4" />
+              Ordenar por
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuItem onClick={() => setSortBy("none")}>
+              Mostrar todos {sortBy === "none" && "✓"}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleSort("satisfaction")}>
+              Satisfacción{" "}
+              {sortBy === "satisfaction" && (sortOrder === "asc" ? "↑" : "↓")}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleSort("effort")}>
+              Esfuerzo{" "}
+              {sortBy === "effort" && (sortOrder === "asc" ? "↑" : "↓")}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleSort("weight")}>
+              Valoración{" "}
+              {sortBy === "weight" && (sortOrder === "asc" ? "↑" : "↓")}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
       <div className="border rounded-lg overflow-x-auto overscroll-x-contain touch-pan-x scrollbar-thin scrollbar-thumb-gray-300">
         <Table>
           <TableHeader>
@@ -219,9 +307,10 @@ export function TaskTable({
               <TableHead className="p-2 sm:p-4 text-xs sm:text-sm text-center w-[90px]">
                 Progreso
               </TableHead>
-              <TableHead className="p-2 sm:p-4 text-xs sm:text-sm text-center w-[100px]">
+              {/*<TableHead className="p-2 sm:p-4 text-xs sm:text-sm text-center w-[100px]">
                 Dependientes
               </TableHead>
+              */}
               <TableHead className="p-2 sm:p-4 text-xs sm:text-sm w-[120px]">
                 Satisfacción
               </TableHead>
@@ -237,7 +326,7 @@ export function TaskTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {tasks.map((task) => (
+            {getSortedTasks().map((task) => (
               <TableRow key={task.id} className="divide-x divide-gray-200">
                 <TableCell className="p-2 sm:p-4 text-xs sm:text-sm break-words sticky left-0 bg-white">
                   {task.name}
@@ -257,9 +346,10 @@ export function TaskTable({
                 <TableCell className="p-2 sm:p-4 text-xs sm:text-sm text-center">
                   {task.progress}%
                 </TableCell>
-                <TableCell className="p-2 sm:p-4 text-xs sm:text-sm text-center">
+                {/*<TableCell className="p-2 sm:p-4 text-xs sm:text-sm text-center">
                   {task.dependencies}
                 </TableCell>
+                */}
                 <TableCell className="p-2 sm:p-4 text-xs sm:text-sm">
                   {taskRatings[task.id]?.clientSatisfaction ?? 0}
                 </TableCell>
@@ -441,7 +531,7 @@ export function TaskTable({
                 className="col-span-3"
               />
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
+            {/* <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="dependencies" className="text-right">
                 Dependientes
               </Label>
@@ -461,7 +551,7 @@ export function TaskTable({
                 }
                 className="col-span-3"
               />
-            </div>
+            </div> */}
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="peso" className="text-right">
                 Peso
