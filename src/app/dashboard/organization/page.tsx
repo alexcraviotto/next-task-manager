@@ -179,14 +179,14 @@ export default function OrganizationsPage() {
                     <Button
                       onClick={handleDecline}
                       disabled={isJoining}
-                      className="border rounded-md hover:bg-gray-50"
+                      className="border rounded-md hover:bg-black/70"
                     >
                       Declinar
                     </Button>
                     <Button
                       onClick={handleJoin}
                       disabled={isJoining}
-                      className="bg-black text-white rounded-md hover:bg-gray-800"
+                      className="bg-black text-white rounded-md hover:bg-black/70"
                     >
                       {isJoining ? (
                         <>
