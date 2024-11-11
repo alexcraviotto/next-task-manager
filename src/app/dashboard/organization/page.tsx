@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { useSession } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import { useOrganizations } from "@/hooks/use-organizations";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -90,7 +90,13 @@ export default function OrganizationsPage() {
         aria-hidden="true"
       />
 
-      <div className="w-full md:w-1/2 flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 bg-white">
+      <div className="relative w-full md:w-1/2 flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8 bg-white">
+        <Button
+          onClick={async () => await signOut()}
+          className="hidden sm:flex items-center hover:scale-105 top-4 transition-transform duration-200 right-4 absolute"
+        >
+          <span className="text-sm">Cerrar sesión</span>
+        </Button>
         <div className="w-full max-w-md space-y-8">
           <AnimatePresence mode="wait">
             <motion.div

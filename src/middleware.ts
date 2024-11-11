@@ -67,6 +67,15 @@ export default withAuth(
             return false;
           }
         }
+
+        // Redirigir si el usuario no es administrador y está en /dashboard/organizations/[uuid]
+        if (
+          !token.isAdmin &&
+          /^\/dashboard\/organizations\/[^/]+$/.test(pathname)
+        ) {
+          return false;
+        }
+
         return true;
       },
     },

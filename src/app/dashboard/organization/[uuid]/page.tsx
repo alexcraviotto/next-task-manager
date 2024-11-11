@@ -19,13 +19,15 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { DashboardSkeleton } from "@/components/DashboardSkeleton";
 
 export default function Dashboard({ params }: { params: { uuid: string } }) {
   const router = useRouter();
-  const { data } = useSession();
+  const { data: session } = useSession();
   const [loading, setLoading] = useState(true);
   const [organizationData, setOrganizationData] =
     useState<OrganizationData | null>(null);
+
   interface OrganizationData {
     totalTasks: number;
     completedTasks: number;
@@ -51,7 +53,10 @@ export default function Dashboard({ params }: { params: { uuid: string } }) {
         }
         const data = await response.json();
         setOrganizationData(data);
-        console.log("Organization data:", data);
+
+        if (session && !session.user?.isAdmin) {
+          router.push(`/dashboard/organization/${params.uuid}/tasks`);
+        }
       } catch (error) {
         console.error("Error fetching organization:", error);
         router.push("/dashboard/organization");
@@ -63,14 +68,21 @@ export default function Dashboard({ params }: { params: { uuid: string } }) {
     if (params.uuid) {
       fetchOrganization();
     }
-  }, [params.uuid, router]);
+  }, [params.uuid, router, session]);
 
-  if (loading) {
+  if (!session?.user?.isAdmin) {
     return (
       <DashboardStructure>
         <div className="flex h-full items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin" />
         </div>
+      </DashboardStructure>
+    );
+  }
+  if (loading) {
+    return (
+      <DashboardStructure>
+        <DashboardSkeleton />
       </DashboardStructure>
     );
   }
@@ -104,7 +116,7 @@ export default function Dashboard({ params }: { params: { uuid: string } }) {
           className="flex justify-between items-center"
         >
           <DashboardTitle
-            title={`👋 Bienvenido, ${toCapitalize(data?.user?.username)}`}
+            title={`👋 Bienvenido, ${toCapitalize(session?.user?.username)}`}
           />
         </motion.div>
 
@@ -197,9 +209,9 @@ export default function Dashboard({ params }: { params: { uuid: string } }) {
               <CardDescription>Estado actual del proyecto</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4  m-4">
+              <div className="space-y-4 m-4">
                 <div>
-                  <div className="flex justify-between mb-2 ">
+                  <div className="flex justify-between mb-2">
                     <span className="text-sm font-medium">Progreso total</span>
                     <span className="text-sm font-medium">
                       {organizationData?.totalProgress || 0}%
