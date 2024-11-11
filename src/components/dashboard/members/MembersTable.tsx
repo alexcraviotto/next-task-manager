@@ -61,14 +61,15 @@ export function MembersTable({
   const updateMemberWeight = async (userId: number, newWeight: number) => {
     setIsLoading(true);
     try {
-      console.log("organizationId", organizationId);
-      const response = await fetch(`/api/member/${organizationId}/${userId}`, {
+      console.log("newWeight", newWeight);
+      const response = await fetch(`/api/member`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          weight: newWeight,
+          organizationId: organizationId,
+          newWeight: newWeight,
         }),
       });
       const data = await response.json();
