@@ -1,9 +1,17 @@
+import { authOptions } from "@/lib/authOptions";
 import { prisma } from "@/lib/database";
+import { getServerSession } from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 
 // Añadir el método GET para búsqueda de usuarios
 export async function GET(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user || !session.user.email || !session.user.isAdmin) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+
   const searchParams = new URL(req.url).searchParams;
   const username = searchParams.get("username");
   const organizationId = req.url.split("/")[4]; // Esto asume que la URL es algo como /api/organizations/{organizationId}/invite
@@ -41,6 +49,10 @@ export async function GET(req: NextRequest) {
 
 // Mantener el método POST existente sin cambios
 export async function POST(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user || !session.user.email || !session.user.isAdmin) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
   try {
     const { userId, organizationId /*weight = 0 */ } = await req.json();
 
