@@ -129,7 +129,6 @@ export async function PATCH(request: NextRequest) {
       select: {
         username: true,
         email: true,
-        updatedAt: true,
       },
     });
 
