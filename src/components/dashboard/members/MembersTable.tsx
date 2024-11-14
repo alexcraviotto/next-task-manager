@@ -33,7 +33,7 @@ interface MembersTableProps {
   members: Member[];
   organizationId: string;
   onAddMember: (
-    member: Omit<Member, "id" | "createdAt" | "updatedAt" | "email">,
+    member: Omit<Member, "id" | "createdAt" | "updatedAt">,
   ) => Promise<void>;
   onUpdateMember: (id: number, member: Partial<Member>) => Promise<void>;
   onDeleteMember: (id: number) => Promise<void>;
@@ -238,6 +238,7 @@ export function MembersTable({
         // Si todo sale bien, actualizar la UI
         await onAddMember({
           username: userInfo.username,
+          email: userInfo.email,
           isAdmin: editingMember.isAdmin || false,
           weight: editingMember.weight || 0,
         });
