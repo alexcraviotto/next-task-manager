@@ -53,10 +53,6 @@ export default function Dashboard({ params }: { params: { uuid: string } }) {
         }
         const data = await response.json();
         setOrganizationData(data);
-
-        if (session && !session.user?.isAdmin) {
-          router.push(`/dashboard/organization/${params.uuid}/tasks`);
-        }
       } catch (error) {
         console.error("Error fetching organization:", error);
         router.push("/dashboard/organization");
