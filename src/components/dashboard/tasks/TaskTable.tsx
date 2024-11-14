@@ -34,6 +34,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ArrowUpDown } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { useToast } from "@/hooks/use-toast";
 
 interface TaskTableProps {
   projectId: string;
@@ -71,6 +73,8 @@ export function TaskTable({
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { data: session } = useSession();
+  const { toast } = useToast();
 
   // TaskRating
   const [taskRatings, setTaskRatings] = useState<{
@@ -159,8 +163,30 @@ export function TaskTable({
     }
   };
 
+  // Añadir validación de fechas
+  const validateDates = (startDate: string, endDate: string): boolean => {
+    const start = new Date(startDate).getTime();
+    const end = new Date(endDate).getTime();
+    return end >= start;
+  };
+
   const handleSaveTask = async () => {
     if (!editingTask) return;
+
+    // Validar fechas antes de guardar
+    if (!validateDates(editingTask.startDate, editingTask.endDate)) {
+      setError(
+        "La fecha de fin debe ser posterior o igual a la fecha de inicio",
+      );
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description:
+          "La fecha de fin debe ser posterior o igual a la fecha de inicio",
+      });
+      return;
+    }
+
     try {
       let updatedTask;
       if ("id" in editingTask) {
@@ -179,10 +205,19 @@ export function TaskTable({
 
         // Recargar los ratings después de actualizar
         await loadTaskRatings(editingTask.id);
+
+        toast({
+          title: "Tarea actualizada",
+          description: "La tarea se ha actualizado correctamente",
+        });
       } else {
         // Si es una nueva tarea
         updatedTask = await onAddTask(editingTask);
         console.log("Tarea agregada:", updatedTask);
+        toast({
+          title: "Tarea creada",
+          description: "La tarea se ha creado correctamente",
+        });
       }
       setIsDialogOpen(false);
       setEditingTask(null);
@@ -191,14 +226,54 @@ export function TaskTable({
       setError(
         error instanceof Error ? error.message : "Error al guardar la tarea",
       );
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description:
+          "No se pudo guardar la tarea. Por favor, inténtalo de nuevo.",
+      });
     }
+  };
+
+  // Modificar el manejo de cambio de fechas
+  const handleDateChange = (field: "startDate" | "endDate", value: string) => {
+    if (!editingTask) return;
+
+    const newDate = parseInputDate(value);
+    const updatedTask = { ...editingTask };
+
+    if (field === "startDate") {
+      updatedTask.startDate = newDate;
+      // Si la fecha de inicio es posterior a la de fin, actualizar la fecha de fin
+      if (!validateDates(newDate, updatedTask.endDate)) {
+        updatedTask.endDate = newDate;
+      }
+    } else {
+      // Si la fecha de fin es anterior a la de inicio, no permitir el cambio
+      if (!validateDates(updatedTask.startDate, newDate)) {
+        return;
+      }
+      updatedTask.endDate = newDate;
+    }
+
+    setEditingTask(updatedTask);
   };
 
   const handleDeleteTask = async (taskId: number) => {
     try {
       await onDeleteTask(taskId);
+      toast({
+        title: "Tarea eliminada",
+        description: "La tarea se ha eliminado correctamente",
+      });
     } catch (error) {
       console.error("Error deleting task:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description:
+          "No se pudo eliminar la tarea. Por favor, inténtalo de nuevo.",
+      });
     }
   };
 
@@ -257,34 +332,35 @@ export function TaskTable({
 
   return (
     <div className="w-full space-y-4 mt-10 relative">
-      <div className="flex mb-4">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="gap-2">
-              <ArrowUpDown className="h-4 w-4" />
-              Ordenar por
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            <DropdownMenuItem onClick={() => setSortBy("none")}>
-              Mostrar todos {sortBy === "none" && "✓"}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleSort("satisfaction")}>
-              Satisfacción{" "}
-              {sortBy === "satisfaction" && (sortOrder === "asc" ? "↑" : "↓")}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleSort("effort")}>
-              Esfuerzo{" "}
-              {sortBy === "effort" && (sortOrder === "asc" ? "↑" : "↓")}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleSort("weight")}>
-              Valoración{" "}
-              {sortBy === "weight" && (sortOrder === "asc" ? "↑" : "↓")}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
+      {session?.user?.isAdmin && (
+        <div className="flex mb-4">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                <ArrowUpDown className="h-4 w-4" />
+                Ordenar por
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={() => setSortBy("none")}>
+                Mostrar todos {sortBy === "none" && "✓"}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleSort("satisfaction")}>
+                Satisfacción{" "}
+                {sortBy === "satisfaction" && (sortOrder === "asc" ? "↑" : "↓")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleSort("effort")}>
+                Esfuerzo{" "}
+                {sortBy === "effort" && (sortOrder === "asc" ? "↑" : "↓")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleSort("weight")}>
+                Valoración{" "}
+                {sortBy === "weight" && (sortOrder === "asc" ? "↑" : "↓")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      )}
       <div className="border rounded-lg overflow-x-auto overscroll-x-contain touch-pan-x scrollbar-thin scrollbar-thumb-gray-300">
         <Table>
           <TableHeader>
@@ -368,14 +444,16 @@ export function TaskTable({
                     <Pencil className="h-4 w-4" />
                     <span className="sr-only">Editar tarea</span>
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleDeleteTask(task.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    <span className="sr-only">Eliminar tarea</span>
-                  </Button>
+                  {session?.user?.isAdmin && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDeleteTask(task.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      <span className="sr-only">Eliminar tarea</span>
+                    </Button>
+                  )}
                 </TableCell>
               </TableRow>
             ))}
@@ -383,10 +461,12 @@ export function TaskTable({
         </Table>
       </div>
 
-      <Button variant="default" className="gap-2" onClick={handleAddTask}>
-        <Plus className="h-4 w-4" />
-        Agregar Tarea
-      </Button>
+      {session?.user?.isAdmin && (
+        <Button variant="default" className="gap-2" onClick={handleAddTask}>
+          <Plus className="h-4 w-4" />
+          Agregar Tarea
+        </Button>
+      )}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -404,6 +484,7 @@ export function TaskTable({
               <Input
                 id="name"
                 value={editingTask?.name || ""}
+                disabled={!session?.user?.isAdmin}
                 onChange={(e) =>
                   setEditingTask(
                     editingTask
@@ -424,6 +505,7 @@ export function TaskTable({
               <Input
                 id="description"
                 value={editingTask?.description || ""}
+                disabled={!session?.user?.isAdmin}
                 onChange={(e) =>
                   setEditingTask(
                     editingTask
@@ -443,6 +525,7 @@ export function TaskTable({
               </Label>
               <Select
                 value={editingTask?.type || "task"}
+                disabled={!session?.user?.isAdmin}
                 onValueChange={(value) =>
                   setEditingTask(
                     editingTask ? { ...editingTask, type: value } : null,
@@ -466,19 +549,11 @@ export function TaskTable({
               <Input
                 id="startDate"
                 type="date"
+                disabled={!session?.user?.isAdmin}
                 value={
                   editingTask ? formatDateForInput(editingTask.startDate) : ""
                 }
-                onChange={(e) =>
-                  setEditingTask(
-                    editingTask
-                      ? {
-                          ...editingTask,
-                          startDate: parseInputDate(e.target.value),
-                        }
-                      : null,
-                  )
-                }
+                onChange={(e) => handleDateChange("startDate", e.target.value)}
                 className="col-span-3"
               />
             </div>
@@ -487,30 +562,29 @@ export function TaskTable({
                 Fin
               </Label>
               <Input
+                disabled={!session?.user?.isAdmin}
                 id="endDate"
                 type="date"
                 value={
                   editingTask ? formatDateForInput(editingTask.endDate) : ""
                 }
-                onChange={(e) =>
-                  setEditingTask(
-                    editingTask
-                      ? {
-                          ...editingTask,
-                          endDate: parseInputDate(e.target.value),
-                        }
-                      : null,
-                  )
-                }
+                onChange={(e) => handleDateChange("endDate", e.target.value)}
                 className="col-span-3"
+                min={
+                  editingTask ? formatDateForInput(editingTask.startDate) : ""
+                }
               />
             </div>
+            {error && (
+              <p className="text-sm text-red-500 text-center">{error}</p>
+            )}
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="progress" className="text-right">
                 Progreso
               </Label>
               <Input
                 id="progress"
+                disabled={!session?.user?.isAdmin}
                 type="number"
                 value={editingTask?.progress || 0}
                 min={0}
