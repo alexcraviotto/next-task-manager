@@ -48,6 +48,7 @@ describe("Members API", () => {
         email: "admin@example.com",
         username: "Admin User",
         isAdmin: true,
+        name: "Admin User",
       },
     };
 
