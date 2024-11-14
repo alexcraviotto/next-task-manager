@@ -38,6 +38,7 @@ export const authOptions: AuthOptions = {
           id: user.id.toString(),
           email: user.email,
           username: user.username,
+          name: user.name,
           isAdmin: user.isAdmin,
           createdAt: user.createdAt,
           updatedAt: user.updatedAt,
