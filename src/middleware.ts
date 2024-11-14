@@ -51,7 +51,8 @@ export default withAuth(
     // Corregir la redirección de la ruta base de una organización a /tasks usando URL absoluta
     if (
       pathname.match(/^\/dashboard\/organization\/[^/]+$/) &&
-      !pathname.endsWith("/tasks")
+      !pathname.endsWith("/tasks") &&
+      !token?.isAdmin
     ) {
       const url = new URL(pathname + "/tasks", origin);
       return NextResponse.redirect(url);

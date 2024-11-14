@@ -112,7 +112,7 @@ export default function Dashboard({ params }: { params: { uuid: string } }) {
           className="flex justify-between items-center"
         >
           <DashboardTitle
-            title={`👋 Bienvenido, ${toCapitalize(session?.user?.username)}`}
+            title={`👋 Bienvenido, ${toCapitalize(session?.user?.name)}`}
           />
         </motion.div>
 
