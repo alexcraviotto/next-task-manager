@@ -4,6 +4,15 @@
 
 import { getServerSession } from "next-auth";
 
+// Configuración de mocks
+jest.mock("next-auth", () => ({
+  getServerSession: jest.fn(),
+}));
+
+jest.mock("@/lib/database", () => ({
+  prisma: prismaClientMock,
+}));
+
 // Mock de Prisma
 const prismaClientMock = {
   user: {
@@ -12,16 +21,7 @@ const prismaClientMock = {
   },
 };
 
-// Configuración de mocks
-jest.mock("@/lib/database", () => ({
-  prisma: prismaClientMock,
-}));
-
-jest.mock("next-auth", () => ({
-  getServerSession: jest.fn(),
-}));
-
-import { DELETE } from "./route";
+import { DELETE } from "../route";
 
 describe("DELETE /api/dashboard/proyects/1/settings", () => {
   beforeEach(() => {
