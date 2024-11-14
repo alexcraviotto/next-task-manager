@@ -17,6 +17,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
+import { signOut } from "next-auth/react";
 
 const formSchema = z.object({
   username: z
@@ -152,6 +153,7 @@ export default function Settings({
       toast({
         description: result.message || "Account deleted successfully",
       });
+      await signOut();
 
       // Redirigir al usuario al login
       window.location.href = "/auth/login";

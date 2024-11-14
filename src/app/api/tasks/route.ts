@@ -31,8 +31,7 @@ export async function POST(req: NextRequest) {
     !type ||
     !startDate ||
     !endDate ||
-    !organizationId ||
-    !progress
+    !organizationId
   ) {
     console.log(name, description, type, startDate, endDate, organizationId);
     console.log("Invalid parameters");
