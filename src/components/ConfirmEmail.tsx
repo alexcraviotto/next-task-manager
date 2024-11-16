@@ -59,7 +59,7 @@ export default function ConfirmEmail() {
       setErrorMessage("Error de conexión. Inténtalo de nuevo.");
       console.log("Error de conexión al obtener OTP:", error);
     }
-  }, [session?.user?.email, setErrorMessage, setOtpFromServer]); // Incluir todas las dependencias
+  }, [router, session?.user?.email, session?.user?.isVerified]); // Incluir todas las dependencias
 
   // useEffect con cleanup
   useEffect(() => {
@@ -96,7 +96,13 @@ export default function ConfirmEmail() {
     return () => {
       isMounted = false;
     };
-  }, [showOTP, session?.user?.email, fetchOtp]);
+  }, [
+    showOTP,
+    session?.user?.email,
+    session?.user?.isVerified,
+    router,
+    fetchOtp,
+  ]);
 
   const handleContinueClick = async () => {
     console.log("Botón 'Continuar' presionado, estado showOTP:", showOTP);

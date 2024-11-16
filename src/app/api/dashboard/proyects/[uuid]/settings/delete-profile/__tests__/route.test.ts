@@ -3,99 +3,129 @@
  */
 
 import { getServerSession } from "next-auth";
+import { prisma } from "@/lib/database";
+import { DELETE } from "../route";
 
-// Configuración de mocks
+// Mock dependencies
 jest.mock("next-auth", () => ({
   getServerSession: jest.fn(),
 }));
 
 jest.mock("@/lib/database", () => ({
-  prisma: prismaClientMock,
+  prisma: {
+    user: {
+      findUnique: jest.fn(),
+      update: jest.fn(),
+    },
+  },
 }));
 
-// Mock de Prisma
-const prismaClientMock = {
-  user: {
-    findUnique: jest.fn(),
-    update: jest.fn(),
-  },
-};
+describe("DELETE deactivate account endpoint", () => {
+  const mockSession = {
+    user: {
+      email: "test@example.com",
+    },
+  };
 
-import { DELETE } from "../route";
+  const mockUser = {
+    id: 1,
+    email: "test@example.com",
+    isActive: true,
+  };
 
-describe("DELETE /api/dashboard/proyects/1/settings", () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it("should return 401 if user is not authenticated", async () => {
-    // Mock session as null (no authenticated user)
-    (getServerSession as jest.Mock).mockResolvedValueOnce(null);
+  // Test 1: Usuario no autenticado
+  test("debería retornar 401 si el usuario no está autenticado", async () => {
+    (getServerSession as jest.Mock).mockResolvedValue(null);
 
     const response = await DELETE();
-    const data = await response.json();
 
     expect(response.status).toBe(401);
+    const data = await response.json();
     expect(data).toEqual({ error: "Unauthorized" });
   });
 
-  it("should successfully deactivate user account", async () => {
-    // Mock authenticated session
-    (getServerSession as jest.Mock).mockResolvedValueOnce({
-      user: { email: "test@example.com" },
-    });
+  // Test 2: Error en la base de datos durante la búsqueda
+  test("debería manejar errores de base de datos durante la búsqueda del usuario", async () => {
+    (getServerSession as jest.Mock).mockResolvedValue(mockSession);
+    (prisma.user.findUnique as jest.Mock).mockRejectedValue(
+      new Error("Database error"),
+    );
 
-    // Mock user found in database
-    prismaClientMock.user.findUnique.mockResolvedValueOnce({
-      id: 1,
-      email: "test@example.com",
-      isActive: true,
-    });
+    const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation();
 
-    // Mock successful update
-    prismaClientMock.user.update.mockResolvedValueOnce({
-      id: 1,
-      email: "test@example.com",
+    const response = await DELETE();
+
+    expect(response.status).toBe(500);
+    const data = await response.json();
+    expect(data).toEqual({ error: "Failed to deactivate account" });
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "Error deactivating account:",
+      expect.any(Error),
+    );
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  // Test 3: Usuario no encontrado
+  test("debería fallar si el usuario no existe", async () => {
+    (getServerSession as jest.Mock).mockResolvedValue(mockSession);
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
+
+    const response = await DELETE();
+
+    expect(response.status).toBe(500);
+    const data = await response.json();
+    expect(data).toEqual({ error: "Failed to deactivate account" });
+  });
+
+  // Test 4: Error en la base de datos durante la actualización
+  test("debería manejar errores de base de datos durante la actualización", async () => {
+    (getServerSession as jest.Mock).mockResolvedValue(mockSession);
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
+    (prisma.user.update as jest.Mock).mockRejectedValue(
+      new Error("Database error"),
+    );
+
+    const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation();
+
+    const response = await DELETE();
+
+    expect(response.status).toBe(500);
+    const data = await response.json();
+    expect(data).toEqual({ error: "Failed to deactivate account" });
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "Error deactivating account:",
+      expect.any(Error),
+    );
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  // Test 5: Desactivación exitosa de la cuenta
+  test("debería desactivar la cuenta correctamente", async () => {
+    (getServerSession as jest.Mock).mockResolvedValue(mockSession);
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
+    (prisma.user.update as jest.Mock).mockResolvedValue({
+      ...mockUser,
       isActive: false,
     });
 
     const response = await DELETE();
-    const data = await response.json();
 
     expect(response.status).toBe(200);
+    const data = await response.json();
     expect(data).toEqual({ message: "Account deactivated successfully" });
 
-    // Verify prisma calls
-    expect(prismaClientMock.user.findUnique).toHaveBeenCalledWith({
-      where: { email: "test@example.com" },
-    });
-    expect(prismaClientMock.user.update).toHaveBeenCalledWith({
-      where: { id: 1 },
+    // Verificar que se llamó a update con los parámetros correctos
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: mockUser.id },
       data: { isActive: false },
     });
-  });
-
-  it("should return 500 on database error", async () => {
-    // Mock authenticated session
-    (getServerSession as jest.Mock).mockResolvedValueOnce({
-      user: { email: "test@example.com" },
-    });
-
-    // Mock user found
-    prismaClientMock.user.findUnique.mockResolvedValueOnce({
-      id: 1,
-      email: "test@example.com",
-    });
-
-    // Mock database error
-    prismaClientMock.user.update.mockRejectedValueOnce(
-      new Error("Database error"),
-    );
-
-    const response = await DELETE();
-    const data = await response.json();
-
-    expect(response.status).toBe(500);
-    expect(data).toEqual({ error: "Failed to deactivate account" });
   });
 });
