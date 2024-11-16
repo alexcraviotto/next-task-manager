@@ -58,6 +58,7 @@ export function MembersTable({
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
   const { toast } = useToast();
 
+  // Eliminar userId como parametro porque no se esta usando
   const updateMemberWeight = async (userId: number, newWeight: number) => {
     setIsLoading(true);
     try {
