@@ -5,9 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { z } from "zod";
 import { signIn, useSession } from "next-auth/react";
-//import { signIn } from "next-auth/react";
 
-// Schema de validacion
 const registerSchema = z.object({
   name: z
     .string()
@@ -31,16 +29,36 @@ export default function RegisterForm() {
   const [password, setPassword] = useState("");
   const { data: session } = useSession();
 
+  useEffect(() => {
+    console.log("Session state changed:", session);
+    console.log("User verification status:", session?.user?.isVerified);
+
+    if (session && session.user?.isVerified) {
+      console.log("Usuario verificado, redirigiendo a /dashboard/organization");
+      router.replace("/dashboard/organization");
+    } else if (session && session.user?.isVerified == false) {
+      console.log("Usuario no verificado, redirigiendo a /auth/confirm-email");
+      router.replace("/auth/confirm-email");
+    }
+  }, [session, router]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("Iniciando proceso de registro");
     setIsLoading(true);
 
     try {
       // Validar datos con Zod
       const formData = { name, email, username, password };
+      console.log("Validando datos del formulario:", {
+        ...formData,
+        password: "*****",
+      });
       const validatedData = registerSchema.parse(formData);
+      console.log("Datos validados correctamente");
 
       // 1. Registrar usuario
+      console.log("Enviando solicitud de registro");
       const response = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -48,22 +66,27 @@ export default function RegisterForm() {
       });
 
       const data = await response.json();
+      console.log("Respuesta del registro:", data);
 
       if (!response.ok) {
         throw new Error(data.message || "Error al registrarse");
       }
 
-      // 2. Iniciar sesion automaticamente despues del registro
+      // 2. Iniciar sesion automaticamente
+      console.log("Intentando inicio de sesión automático");
       const result = await signIn("credentials", {
         redirect: false,
         email: validatedData.email,
         password: validatedData.password,
       });
 
+      console.log("Resultado del inicio de sesión:", result);
+
       if (result?.error) {
         throw new Error("Error al iniciar sesión automáticamente");
       }
       if (result?.ok) {
+        console.log("Inicio de sesión exitoso, redirigiendo a confirm-email");
         router.replace("/auth/confirm-email");
       }
 
@@ -73,13 +96,17 @@ export default function RegisterForm() {
           "Tu cuenta ha sido creada y has iniciado sesión correctamente",
       });
     } catch (error) {
+      console.error("Error durante el proceso de registro:", error);
+
       if (error instanceof z.ZodError) {
+        console.log("Error de validación Zod:", error.errors);
         toast({
           variant: "destructive",
           title: "Error de validación",
           description: error.errors[0].message,
         });
       } else {
+        console.log("Error general:", error);
         toast({
           variant: "destructive",
           title: "Error",
@@ -88,18 +115,13 @@ export default function RegisterForm() {
         });
       }
     } finally {
+      console.log("Finalizando proceso de registro");
       setIsLoading(false);
     }
   };
-  useEffect(() => {
-    if (session && session.user?.isVerified) {
-      router.replace("/dashboard/organization");
-    } else if (session && !session.user?.isVerified) {
-      router.replace("/auth/confirm-email");
-    }
-  }, [session, router]);
 
   const handleLoginClick = (e: React.MouseEvent) => {
+    console.log("Click en botón de login, redirigiendo");
     e.preventDefault();
     router.replace("/auth/login");
   };
