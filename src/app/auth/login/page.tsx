@@ -1,6 +1,6 @@
 "use client";
-import { useState } from "react";
-import { signIn } from "next-auth/react";
+import { useEffect, useState } from "react";
+import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
@@ -9,6 +9,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const router = useRouter();
+  const { data: session } = useSession();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,6 +78,13 @@ export default function LoginPage() {
       }
     }
   };
+  useEffect(() => {
+    if (session && session.user?.isVerified) {
+      router.replace("/dashboard/organization");
+    } else if (session && !session.user?.isVerified) {
+      router.replace("/auth/confirm-email");
+    }
+  }, [session, router]);
 
   const handleClick = () => {
     router.push("/auth/register");

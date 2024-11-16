@@ -42,6 +42,7 @@ export const authOptions: AuthOptions = {
           isAdmin: user.isAdmin,
           createdAt: user.createdAt,
           updatedAt: user.updatedAt,
+          isVerified: user.isVerified,
         };
       },
     }),
@@ -51,6 +52,7 @@ export const authOptions: AuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.isAdmin = user.isAdmin;
+        token.isVerified = user.isVerified;
       }
       return token;
     },

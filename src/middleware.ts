@@ -6,7 +6,7 @@ const publicPaths = [
   "/",
   "/auth/login",
   "/auth/register",
-  "/auth/signin",
+  "/auth/confirm-email",
   "/api/auth/signin",
 ];
 // Definir extensiones de archivos públicos
@@ -28,22 +28,25 @@ export default withAuth(
     const { origin } = request.nextUrl;
     const token = request.nextauth.token;
 
-    // Permitir acceso a recursos estáticos y API
+    // First check: API routes and static resources
     if (
       pathname.startsWith("/_next/") ||
       pathname.startsWith("/public") ||
-      publicFileExtensions.some((ext) => pathname.includes(ext)) ||
-      pathname.includes("api")
+      pathname.startsWith("/api/") ||
+      (publicFileExtensions.some((ext) => pathname.includes(ext)) && !token)
     ) {
       return NextResponse.next();
     }
 
-    // Redirigir desde páginas de auth al dashboard si está autenticado
-    if (pathname.startsWith("/auth/") && token) {
-      return NextResponse.redirect(`${origin}/dashboard/organization`);
+    // Second check: Auth redirects
+    if (token?.isVerified) {
+      // Redirect from auth pages to dashboard if verified
+      if (pathname.startsWith("/auth/")) {
+        return NextResponse.redirect(`${origin}/dashboard/organization`);
+      }
     }
 
-    // Redirigir usuarios no autenticados al login
+    // Third check: Dashboard access protection
     if (pathname.startsWith("/dashboard") && !token) {
       return NextResponse.redirect(`${origin}/auth/login`);
     }
@@ -70,10 +73,10 @@ export default withAuth(
       const url = new URL(`/dashboard/organization/${orgId}/tasks`, origin);
       return NextResponse.redirect(url);
     }
-
     // Permitir el resto de las rutas
     return NextResponse.next();
   },
+
   {
     callbacks: {
       authorized: ({ token, req }) => {

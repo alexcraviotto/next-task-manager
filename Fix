@@ -1,5 +1,0 @@
-
-> next-task-manager@0.1.0 format
-> prettier --check .
-
-Checking formatting...
