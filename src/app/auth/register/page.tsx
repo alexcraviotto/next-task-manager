@@ -1,9 +1,10 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { z } from "zod";
+import { signIn, useSession } from "next-auth/react";
 //import { signIn } from "next-auth/react";
 
 // Schema de validacion
@@ -28,6 +29,7 @@ export default function RegisterForm() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const { data: session } = useSession();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,10 +53,6 @@ export default function RegisterForm() {
         throw new Error(data.message || "Error al registrarse");
       }
 
-      // Redirigir a la pagina de confirmacion de correo electronico (ConfirmEmail)
-      await router.replace("/auth/confirm-email"); // Cambiamos la ruta
-
-      /* 
       // 2. Iniciar sesion automaticamente despues del registro
       const result = await signIn("credentials", {
         redirect: false,
@@ -65,13 +63,15 @@ export default function RegisterForm() {
       if (result?.error) {
         throw new Error("Error al iniciar sesión automáticamente");
       }
+      if (result?.ok) {
+        router.replace("/auth/confirm-email");
+      }
 
       toast({
         title: "¡Bienvenido!",
         description:
           "Tu cuenta ha sido creada y has iniciado sesión correctamente",
       });
-    */
     } catch (error) {
       if (error instanceof z.ZodError) {
         toast({
@@ -91,6 +91,13 @@ export default function RegisterForm() {
       setIsLoading(false);
     }
   };
+  useEffect(() => {
+    if (session && session.user?.isVerified) {
+      router.replace("/dashboard/organization");
+    } else if (session && !session.user?.isVerified) {
+      router.replace("/auth/confirm-email");
+    }
+  }, [session, router]);
 
   const handleLoginClick = (e: React.MouseEvent) => {
     e.preventDefault();

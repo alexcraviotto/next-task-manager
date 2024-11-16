@@ -22,7 +22,6 @@ export async function GET() {
         otps: {
           where: {
             isUsed: false,
-            expiresAt: { gt: new Date() },
           },
           orderBy: { createdAt: "desc" },
           take: 1,
@@ -36,6 +35,8 @@ export async function GET() {
         { status: 404 },
       );
     }
+    console.log("🚀 ~ GET ~ user.isVerified:", user.isVerified);
+    console.log("🚀 ~ GET ~ user.otps:", JSON.stringify(user.otps));
 
     // Verificar si el usuario ha confirmado su correo
     if (!user.isVerified) {
@@ -45,7 +46,10 @@ export async function GET() {
       );
     }
 
-    return NextResponse.json({ verified: true }, { status: 200 });
+    return NextResponse.json(
+      { verified: true, otp: user.otps[0]?.code },
+      { status: 200 },
+    );
   } catch (error) {
     console.error("Error retrieving OTP:", error);
     return NextResponse.json(

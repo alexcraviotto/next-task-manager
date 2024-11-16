@@ -22,6 +22,11 @@ export default function ConfirmEmail() {
   // Función para obtener OTP del servidor
   const fetchOtp = useCallback(async () => {
     try {
+      if (session?.user?.isVerified) {
+        // Si el usuario ya está verificado, redirigir al dashboard
+        router.replace("/dashboard/organization");
+        return;
+      }
       if (!session?.user?.email) {
         setErrorMessage("No se encontró el correo en la sesión.");
         console.log("Error: No se encontró el correo en la sesión.");
@@ -62,6 +67,22 @@ export default function ConfirmEmail() {
     console.log("isMounted:", isMounted);
 
     const initiateFetch = async () => {
+      console.log("Iniciando fetchOtp.");
+      console.log(
+        "🚀 ~ initiateFetch ~ session?.user?.email:",
+        session?.user?.email,
+      );
+      console.log(
+        "🚀 ~ initiateFetch ~ session?.user?.isVerified:",
+        session?.user?.isVerified,
+      );
+
+      if (session?.user?.isVerified) {
+        // Si el usuario ya está verificado, redirigir al dashboard
+        router.push("/dashboard/organization");
+        return;
+      }
+      console.log("🚀 ~ initiateFetch ~ showOTP:", showOTP);
       if (!showOTP && session?.user?.email) {
         console.log(
           "Iniciando fetchOtp, showOTP es falso y hay sesión con email.",
@@ -106,9 +127,8 @@ export default function ConfirmEmail() {
             console.log("Respuesta de verificación de email:", data);
 
             if (response.ok) {
-              //router.push("/dashboard/organization"); // Redirige a la pagina de dashboard/organization
               window.location.href = "/dashboard/organization";
-              //router.replace("/dashboard/organization")
+              session.user.isVerified = true;
             } else {
               setErrorMessage(data.message || "Error al verificar el email.");
               console.log(
