@@ -11,21 +11,44 @@ export default function LoginPage() {
   const router = useRouter();
   const { data: session } = useSession();
 
+  useEffect(() => {
+    console.log("Estado de la sesión actualizado:", session);
+    console.log(
+      "Estado de verificación del usuario:",
+      session?.user?.isVerified,
+    );
+
+    if (session && session.user?.isVerified) {
+      console.log("Usuario verificado, redirigiendo a dashboard");
+      router.replace("/dashboard/organization");
+    } else if (session && session.user?.isVerified == false) {
+      console.log(
+        "Usuario no verificado, redirigiendo a confirmación de email",
+      );
+      router.replace("/auth/confirm-email");
+    }
+  }, [session, router]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("Iniciando proceso de login");
+    console.log("Datos del formulario:", { email, password: "****" });
 
     // Validaciones básicas
     if (!email && !password) {
+      console.log("Error: Email y contraseña vacíos");
       setError("El email y la contraseña son requeridos");
       return;
     }
 
     if (!email) {
+      console.log("Error: Email vacío");
       setError("El email es requerido");
       return;
     }
 
     if (!password) {
+      console.log("Error: Contraseña vacía");
       setError("La contraseña es requerida");
       return;
     }
@@ -33,31 +56,24 @@ export default function LoginPage() {
     // Validación simple de formato de email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
+      console.log("Error: Formato de email inválido");
       setError("Por favor, introduce un email válido");
       return;
     }
 
     try {
+      console.log("Intentando iniciar sesión con credenciales");
       const result = await signIn("credentials", {
         redirect: false,
         email,
         password,
       });
-
+      console.log("Resultado del inicio de sesión:", result);
       if (result?.ok) {
-        // Comprobar si el email verificado
-        const res = await fetch("/api/users/verify-email");
-        const data = await res.json();
-
-        if (data?.verified) {
-          // Si el email verificado, redirigir al dashboard
-          //window.location.href = "/dashboard/organization";
-          router.replace("/dashboard/organization");
-        } else {
-          // Si el email no verificado, redirigir al componente OTP
-          router.replace("/auth/confirm-email");
-        }
+        console.log("Inicio de sesión exitoso, redirigiendo según estado");
+        // La redirección ahora depende únicamente de la lógica del useEffect
       } else {
+        console.log("Error en inicio de sesión:", result?.error);
         // Manejo de diferentes tipos de errores
         switch (result?.error) {
           case "AccessDenied":
@@ -67,7 +83,34 @@ export default function LoginPage() {
             setError("Error al iniciar sesión. Por favor, inténtalo de nuevo");
         }
       }
+      /* Evitar mandar correo desde inicio
+      if (result?.ok) {
+        console.log("Inicio de sesión exitoso, verificando estado del email");
+        // Comprobar si el email verificado
+        const res = await fetch("/api/users/verify-email");
+        const data = await res.json();
+        console.log("Respuesta de verificación de email:", data);
+
+        if (data?.verified) {
+          console.log("Email verificado, redirigiendo a dashboard");
+          router.replace("/dashboard/organization");
+        } else {
+          console.log("Email no verificado, redirigiendo a confirmación");
+          router.replace("/auth/confirm-email");
+        }
+      } else {
+        console.log("Error en inicio de sesión:", result?.error);
+        // Manejo de diferentes tipos de errores
+        switch (result?.error) {
+          case "AccessDenied":
+            setError("No tienes permiso para acceder");
+            break;
+          default:
+            setError("Error al iniciar sesión. Por favor, inténtalo de nuevo");
+        }
+      }*/
     } catch (err: Error | unknown) {
+      console.error("Error durante el proceso de login:", err);
       if (err instanceof Error) {
         console.error("Error de conexión:", err);
         setError(`Error de conexión: ${err.message}`);
@@ -78,15 +121,9 @@ export default function LoginPage() {
       }
     }
   };
-  useEffect(() => {
-    if (session && session.user?.isVerified) {
-      router.replace("/dashboard/organization");
-    } else if (session && !session.user?.isVerified) {
-      router.replace("/auth/confirm-email");
-    }
-  }, [session, router]);
 
   const handleClick = () => {
+    console.log("Redirigiendo a registro");
     router.push("/auth/register");
   };
 
@@ -108,6 +145,7 @@ export default function LoginPage() {
         type="text"
         value={email}
         onChange={(e) => {
+          console.log("Email actualizado:", e.target.value);
           setEmail(e.target.value);
           setError(""); // Limpiar error cuando el usuario empiece a escribir
         }}
@@ -118,6 +156,7 @@ export default function LoginPage() {
         type="password"
         value={password}
         onChange={(e) => {
+          console.log("Contraseña actualizada");
           setPassword(e.target.value);
           setError(""); // Limpiar error cuando el usuario empiece a escribir
         }}
@@ -131,7 +170,7 @@ export default function LoginPage() {
         Continuar
       </Button>
       <Button
-        type="button" // Añadido type="button" para evitar que envíe el formulario
+        type="button"
         onClick={handleClick}
         className="w-full p-3 bg-white text-black rounded-lg font-semibold border-2 border-black hover:bg-gray-50 transition-colors"
       >
