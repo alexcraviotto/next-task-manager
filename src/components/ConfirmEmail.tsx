@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import {
   InputOTPGroup,
   InputOTPSlot,
 } from "@/components/ui/input-otp";
-import { useSession } from "next-auth/react"; // Importar hook para la sesión
+import { signOut, useSession } from "next-auth/react";
 
 export default function ConfirmEmail() {
   const { data: session } = useSession(); // Usar el hook useSession para obtener la sesión
@@ -19,9 +19,17 @@ export default function ConfirmEmail() {
   const [otpFromServer, setOtpFromServer] = useState<string | null>(null);
   const router = useRouter();
 
+  // Usar useRef para controlar si ya se esta haciendo una peticion
+  const isFetchingRef = useRef(false);
+  // Usar useRef para controlar si el componente está montado
+  const isMountedRef = useRef(true);
+
   // Función para obtener OTP del servidor
   const fetchOtp = useCallback(async () => {
+    console.log("dentro de fetchOtp");
     try {
+      // Si ya hay una petición en curso o el componente esta desmontado, no hacer nada
+      if (isFetchingRef.current || !isMountedRef.current) return;
       if (session?.user?.isVerified) {
         // Si el usuario ya está verificado, redirigir al dashboard
         router.replace("/dashboard/organization");
@@ -44,27 +52,39 @@ export default function ConfirmEmail() {
 
       const data = await response.json();
       console.log("Respuesta del servidor al obtener OTP:", data);
-
-      if (response.ok) {
-        setOtpFromServer(data.otp); // Guardar OTP recibido
-        console.log("OTP recibido del servidor:", data.otp);
-      } else {
-        setErrorMessage(data.message || "Error al obtener el OTP");
-        console.log(
-          "Error al obtener OTP:",
-          data.message || "Error desconocido",
-        );
+      // Solo actualizar el estado si el componente sigue montado
+      if (isMountedRef.current) {
+        if (response.ok) {
+          setOtpFromServer(data.otp); // Guardar OTP recibido
+          console.log("OTP recibido del servidor:", data.otp);
+        } else {
+          setErrorMessage(data.message || "Error al obtener el OTP");
+          console.log(
+            "Error al obtener OTP:",
+            data.message || "Error desconocido",
+          );
+        }
       }
-    } catch (error) {
-      setErrorMessage("Error de conexión. Inténtalo de nuevo.");
-      console.log("Error de conexión al obtener OTP:", error);
+    } catch {
+      if (isMountedRef.current) {
+        setErrorMessage("Error de conexión. Inténtalo de nuevo.");
+      }
+    } finally {
+      // Resetear el flag de fetching
+      isFetchingRef.current = false;
     }
-  }, [router, session?.user?.email, session?.user?.isVerified]); // Incluir todas las dependencias
+  }, [session?.user?.email, setErrorMessage, setOtpFromServer]); // Incluir todas las dependencias
 
+  console.log("Entramos en useEffect");
   // useEffect con cleanup
   useEffect(() => {
+    // Marcar el componente como montado
+    isMountedRef.current = true;
+    console.log("En en useEffect");
     let isMounted = true;
     console.log("isMounted:", isMounted);
+
+    console.log("Entramos en initiateFetch");
 
     const initiateFetch = async () => {
       console.log("Iniciando fetchOtp.");
@@ -83,26 +103,22 @@ export default function ConfirmEmail() {
         return;
       }
       console.log("🚀 ~ initiateFetch ~ showOTP:", showOTP);
-      if (!showOTP && session?.user?.email) {
+      if (!showOTP && !otpFromServer && session?.user?.email) {
         console.log(
           "Iniciando fetchOtp, showOTP es falso y hay sesión con email.",
         );
-        await fetchOtp();
+        console.log("Llamada fetchOtp");
+        fetchOtp();
       }
     };
-
+    console.log("Fuera de initiateFetch, segundo initiateFetch");
     initiateFetch();
 
     return () => {
       isMounted = false;
+      isMountedRef.current = false;
     };
-  }, [
-    showOTP,
-    session?.user?.email,
-    session?.user?.isVerified,
-    router,
-    fetchOtp,
-  ]);
+  }, [showOTP, session?.user?.email, fetchOtp]);
 
   const handleContinueClick = async () => {
     console.log("Botón 'Continuar' presionado, estado showOTP:", showOTP);
@@ -168,7 +184,17 @@ export default function ConfirmEmail() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen p-4 bg-white">
+    <div className="flex items-center justify-center min-h-screen p-4 bg-white relative">
+      {/* Mostrar botón solo si hay sesión */}
+      {session && (
+        <Button
+          onClick={async () => await signOut()}
+          className="absolute top-4 right-4 bg-gray-200 text-gray-700 hover:bg-gray-300"
+        >
+          <span className="text-sm">Cerrar sesión</span>
+        </Button>
+      )}
+
       <div className="w-full max-w-md bg-white rounded-lg shadow-md p-8">
         <h2 className="text-2xl font-bold text-gray-800 text-center mb-4">
           Confirmación de email
@@ -179,7 +205,6 @@ export default function ConfirmEmail() {
             : "Confirma tu dirección de correo electrónico para acceder."}
         </p>
 
-        {/* Condicional para mostrar la imagen o el componente OTP */}
         <div className="flex justify-center mb-6">
           {!showOTP ? (
             <Image
@@ -195,11 +220,8 @@ export default function ConfirmEmail() {
               <InputOTP
                 value={otp}
                 maxLength={6}
-                pattern={"^[0-9]*$"} // Acepta solo números
-                onChange={(e) => {
-                  setOtp(e);
-                  console.log("OTP ingresado:", e);
-                }} // Cambia aquí
+                pattern={"^[0-9]*$"}
+                onChange={(e) => setOtp(e)}
               >
                 <InputOTPGroup>
                   <InputOTPSlot index={0} />
@@ -231,7 +253,7 @@ export default function ConfirmEmail() {
         </Button>
         <Button
           className="w-full bg-white text-black border border-gray-300 hover:bg-gray-100"
-          onClick={() => router.back()} // Acción para volver a la página anterior
+          onClick={() => router.back()}
         >
           Volver
         </Button>
