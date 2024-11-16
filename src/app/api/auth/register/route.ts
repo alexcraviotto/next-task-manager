@@ -6,22 +6,33 @@ import nodemailer from "nodemailer";
 
 export async function POST(req: NextRequest) {
   try {
-    const { username, email, password } = await req.json();
+    const { name, email, username, password } = await req.json();
 
-    if (!username || !email || !password) {
+    if (!name || !email || !username || !password) {
       return NextResponse.json(
-        { message: "Invalid parameters" },
+        { message: "Parametros inválidos" },
         { status: 400 },
       );
     }
 
-    const existingUser = await prisma.user.findUnique({
+    let existingUser = await prisma.user.findUnique({
       where: { email },
     });
 
     if (existingUser) {
       return NextResponse.json(
-        { message: "User already exists" },
+        { message: "El email ya existe" },
+        { status: 400 },
+      );
+    }
+
+    existingUser = await prisma.user.findUnique({
+      where: { username },
+    });
+
+    if (existingUser) {
+      return NextResponse.json(
+        { message: "El username ya existe" },
         { status: 400 },
       );
     }
@@ -31,8 +42,9 @@ export async function POST(req: NextRequest) {
     // Crea el usuario en la base de datos
     const user = await prisma.user.create({
       data: {
-        username,
+        name,
         email,
+        username,
         password: hashedPassword,
       },
     });
@@ -85,7 +97,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error("Error creating user:", error);
     return NextResponse.json(
-      { message: "Internal Server Error" },
+      { message: "Error interno del servidor" },
       { status: 500 },
     );
   }

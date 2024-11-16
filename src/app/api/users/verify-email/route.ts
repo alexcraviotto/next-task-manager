@@ -31,7 +31,10 @@ export async function GET() {
     });
 
     if (!user) {
-      return NextResponse.json({ message: "User not found" }, { status: 404 });
+      return NextResponse.json(
+        { message: "Usuario no encontrado" },
+        { status: 404 },
+      );
     }
 
     // Verificar si el usuario ha confirmado su correo

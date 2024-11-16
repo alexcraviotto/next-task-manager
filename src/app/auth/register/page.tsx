@@ -4,28 +4,28 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { z } from "zod";
-import { signIn } from "next-auth/react";
+//import { signIn } from "next-auth/react";
 
 // Schema de validacion
 const registerSchema = z.object({
-  username: z
+  name: z
     .string()
     .min(2, "El nombre debe tener al menos 2 caracteres")
     .max(50, "El nombre no puede tener más de 50 caracteres"),
-  surname: z
-    .string()
-    .min(2, "Los apellidos deben tener al menos 2 caracteres")
-    .max(50, "Los apellidos no pueden tener más de 50 caracteres"),
   email: z.string().email("Por favor, introduce un email válido"),
-  password: z.string().min(1, "La contraseña debe tener al menos 1 caracter"),
+  username: z
+    .string()
+    .min(2, "El username debe tener al menos 2 caracteres")
+    .max(50, "El username no puede tener más de 50 caracteres"),
+  password: z.string().min(8, "La contraseña debe tener al menos 8 caracter"),
 });
 
 export default function RegisterForm() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
+  const [name, setName] = useState("");
   const [username, setUsername] = useState("");
-  const [surname, setSurname] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -35,7 +35,7 @@ export default function RegisterForm() {
 
     try {
       // Validar datos con Zod
-      const formData = { username, surname, email, password };
+      const formData = { name, email, username, password };
       const validatedData = registerSchema.parse(formData);
 
       // 1. Registrar usuario
@@ -51,6 +51,10 @@ export default function RegisterForm() {
         throw new Error(data.message || "Error al registrarse");
       }
 
+      // Redirigir a la pagina de confirmacion de correo electronico (ConfirmEmail)
+      await router.replace("/auth/confirm-email"); // Cambiamos la ruta
+
+      /* 
       // 2. Iniciar sesion automaticamente despues del registro
       const result = await signIn("credentials", {
         redirect: false,
@@ -67,9 +71,7 @@ export default function RegisterForm() {
         description:
           "Tu cuenta ha sido creada y has iniciado sesión correctamente",
       });
-
-      // Redirigir a la pagina de confirmacion de correo electronico (ConfirmEmail)
-      await router.replace("/auth/confirm-email"); // Cambiamos la ruta
+    */
     } catch (error) {
       if (error instanceof z.ZodError) {
         toast({
@@ -82,9 +84,7 @@ export default function RegisterForm() {
           variant: "destructive",
           title: "Error",
           description:
-            error instanceof Error
-              ? error.message
-              : "Error en el proceso de registro",
+            error instanceof Error ? error.message : "Error al registrarse",
         });
       }
     } finally {
@@ -105,16 +105,9 @@ export default function RegisterForm() {
       <h2 className="text-2xl font-bold mb-6 text-center">Registrarse</h2>
       <input
         type="text"
-        value={username}
-        onChange={(e) => setUsername(e.target.value)}
-        placeholder="Nombre"
-        className="w-full p-3 mb-4 border border-gray-300 rounded-lg focus:outline-none focus:border-black"
-      />
-      <input
-        type="text"
-        value={surname}
-        onChange={(e) => setSurname(e.target.value)}
-        placeholder="Apellidos"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="Name"
         className="w-full p-3 mb-4 border border-gray-300 rounded-lg focus:outline-none focus:border-black"
       />
       <input
@@ -122,6 +115,13 @@ export default function RegisterForm() {
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         placeholder="Email"
+        className="w-full p-3 mb-4 border border-gray-300 rounded-lg focus:outline-none focus:border-black"
+      />
+      <input
+        type="text"
+        value={username}
+        onChange={(e) => setUsername(e.target.value)}
+        placeholder="Username"
         className="w-full p-3 mb-4 border border-gray-300 rounded-lg focus:outline-none focus:border-black"
       />
       <input
