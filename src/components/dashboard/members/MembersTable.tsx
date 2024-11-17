@@ -106,19 +106,16 @@ export function MembersTable({
       setFormErrors({});
     }
   }, [isDialogOpen]);
-  async function fetchUserByUsername(
-    username: string,
-  ): Promise<UserInfo | null> {
+  async function fetchUserByEmail(email: string): Promise<UserInfo | null> {
     try {
-      if (!username.trim()) {
+      if (!email.trim()) {
         toast({
-          description: "Por favor, ingrese un nombre de usuario",
+          description: "Por favor, ingrese un correo electrónico",
           variant: "destructive",
         });
         return null;
       }
 
-      // Verificar que organizationId exista
       if (!organizationId) {
         toast({
           description: "ID de organización no válido",
@@ -128,8 +125,8 @@ export function MembersTable({
       }
 
       const response = await fetch(
-        `/api/organizations/${organizationId}/invite?username=${encodeURIComponent(
-          username.trim(),
+        `/api/organizations/${organizationId}/invite?email=${encodeURIComponent(
+          email.trim(),
         )}`,
         {
           method: "GET",
@@ -146,7 +143,6 @@ export function MembersTable({
           return null;
         }
         await response.json();
-        //toast.error(error.message || "Error al buscar usuario");
         return null;
       }
 
@@ -162,41 +158,34 @@ export function MembersTable({
   }
 
   const handleSaveMember = async () => {
-    console.log("editingMember:", editingMember);
     if (!editingMember) return;
 
     if (!organizationId) {
-      //toast.error("ID de organización no válido");
       toast({
         description: "ID de organización no válido",
         variant: "destructive",
       });
       return;
     }
-    console.log("HOLA");
 
     setIsLoading(true);
 
     try {
       if (editingMember.id === -1) {
-        // Validar el nombre de usuario
-        if (!editingMember.username.trim()) {
+        // Validar el email en lugar del username
+        if (!editingMember.email.trim()) {
           toast({
-            description: "Por favor ingrese un nombre de usuario",
+            description: "Por favor ingrese un correo electrónico",
             variant: "destructive",
           });
           setIsLoading(false);
           return;
         }
-        // Buscar información del usuario
-        const userInfo = await fetchUserByUsername(editingMember.username);
+
+        // Buscar información del usuario por email
+        const userInfo = await fetchUserByEmail(editingMember.email);
         if (!userInfo) {
           setIsLoading(false);
-          toast({
-            description: "Usuario no encontrado",
-            variant: "destructive",
-          });
-          console.log("Usuario no encontrado");
           return;
         }
 
@@ -237,6 +226,8 @@ export function MembersTable({
         console.log("Response:", result); // Log para debug
 
         // Si todo sale bien, actualizar la UI
+        console.log("userInfo:", userInfo);
+        console.log("Actualizar UI:");
         await onAddMember({
           username: userInfo.username,
           email: userInfo.email,
@@ -244,10 +235,10 @@ export function MembersTable({
           weight: editingMember.weight || 0,
         });
 
-        toast({
+        /*toast({
           description: "Miembro agregado exitosamente",
           variant: "default",
-        });
+        });*/
         setIsDialogOpen(false);
       } else {
         // Primero actualizamos el peso si ha cambiado
@@ -422,28 +413,29 @@ export function MembersTable({
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="username" className="text-right">
-                Usuario
+              <Label htmlFor="email" className="text-right">
+                Email
               </Label>
               <div className="col-span-3">
                 <Input
-                  id="username"
-                  value={editingMember?.username || ""}
+                  id="email"
+                  type="email"
+                  value={editingMember?.email || ""}
                   onChange={(e) =>
                     setEditingMember(
                       editingMember
                         ? {
                             ...editingMember,
-                            username: e.target.value,
+                            email: e.target.value,
                           }
                         : null,
                     )
                   }
-                  className={formErrors.username ? "border-red-500" : ""}
+                  className={formErrors.email ? "border-red-500" : ""}
                 />
-                {formErrors.username && (
+                {formErrors.email && (
                   <p className="text-red-500 text-sm mt-1">
-                    {formErrors.username}
+                    {formErrors.email}
                   </p>
                 )}
               </div>

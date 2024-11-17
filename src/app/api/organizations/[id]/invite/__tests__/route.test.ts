@@ -48,17 +48,17 @@ describe("GET /api/organizations/[id]/invite", () => {
   const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3001";
 
   it("should return user information if found", async () => {
-    const username = "testuser";
+    const email = "user@example.com";
     const organizationId = "2";
 
     prismaClientMock.user.findFirst.mockResolvedValueOnce({
       id: 1,
       email: "user@example.com",
-      username,
+      username: "testuser",
     });
 
     const req = new Request(
-      `${baseUrl}/api/organizations/${organizationId}/invite?username=${username}`,
+      `${baseUrl}/api/organizations/${organizationId}/invite?email=${email}`,
       {
         method: "GET",
       },
@@ -71,22 +71,25 @@ describe("GET /api/organizations/[id]/invite", () => {
     expect(data).toEqual({
       id: 1,
       email: "user@example.com",
-      username,
+      username: "testuser",
     });
     expect(prismaClientMock.user.findFirst).toHaveBeenCalledWith({
-      where: { username },
+      where: {
+        email,
+        isActive: true,
+      },
       select: { id: true, email: true, username: true },
     });
   });
 
-  it("should return 404 if user is not found", async () => {
-    const username = "testuser";
+  it("should return 404 if user is not found or inactive", async () => {
+    const email = "user@example.com";
     const organizationId = "2";
 
     prismaClientMock.user.findFirst.mockResolvedValueOnce(null);
 
     const req = new Request(
-      `${baseUrl}/api/organizations/${organizationId}/invite?username=${username}`,
+      `${baseUrl}/api/organizations/${organizationId}/invite?email=${email}`,
       {
         method: "GET",
       },
@@ -96,9 +99,12 @@ describe("GET /api/organizations/[id]/invite", () => {
     const data = await response.json();
 
     expect(response.status).toBe(404);
-    expect(data).toEqual({ message: "User not found" });
+    expect(data).toEqual({ message: "Usuario no encontrado o inactivo" });
     expect(prismaClientMock.user.findFirst).toHaveBeenCalledWith({
-      where: { username },
+      where: {
+        email,
+        isActive: true,
+      },
       select: { id: true, email: true, username: true },
     });
   });
@@ -113,7 +119,7 @@ describe("GET /api/organizations/[id]/invite", () => {
 
     expect(response.status).toBe(400);
     expect(data).toEqual({
-      message: "Username and organizationId are required",
+      message: "Email and organizationId are required",
     });
   });
 
@@ -134,7 +140,7 @@ describe("GET /api/organizations/[id]/invite", () => {
   });
 
   it("should return 500 on internal server error", async () => {
-    const username = "testuser";
+    const email = "user@example.com";
     const organizationId = "2";
 
     prismaClientMock.user.findFirst.mockRejectedValueOnce(
@@ -142,7 +148,7 @@ describe("GET /api/organizations/[id]/invite", () => {
     );
 
     const req = new Request(
-      `${baseUrl}/api/organizations/${organizationId}/invite?username=${username}`,
+      `${baseUrl}/api/organizations/${organizationId}/invite?email=${email}`,
       {
         method: "GET",
       },
@@ -157,6 +163,7 @@ describe("GET /api/organizations/[id]/invite", () => {
 });
 
 describe("POST /api/organizations/[id]/invite", () => {
+  // POST tests remain unchanged since they already match the route implementation
   beforeEach(() => {
     jest.clearAllMocks();
     (getServerSession as jest.Mock).mockResolvedValue({
