@@ -35,16 +35,38 @@ export async function GET() {
 
     if (user.isVerified) {
       console.log("Usuario ya verificado");
-      return NextResponse.json(
-        { verified: true },
-        { status: 200 },
-      );
+      return NextResponse.json({ verified: true }, { status: 200 });
     }
 
-    // Si no está verificado, generamos nuevo OTP sin importar si hay anteriores
+    // Buscar el último OTP no usado
+    const lastOtp = await prisma.oTP.findFirst({
+      where: {
+        email,
+        isUsed: false,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    // Verificar si han pasado 5 minutos desde el último OTP
+    if (lastOtp) {
+      const timeDifference = Date.now() - lastOtp.createdAt.getTime();
+      const minutesPassed = timeDifference / (1000 * 60);
+
+      if (minutesPassed < 5) {
+        console.log("Debe esperar 5 minutos entre solicitudes de OTP");
+        return NextResponse.json(
+          { message: "Please wait 5 minutes before requesting a new OTP" },
+          { status: 429 },
+        );
+      }
+    }
+
+    // Si no está verificado y han pasado 5 minutos, generamos nuevo OTP
     console.log("Usuario no verificado, generando nuevo código");
     const confirmationCode = Math.floor(
-      100000 + Math.random() * 900000
+      100000 + Math.random() * 900000,
     ).toString();
 
     // Marcar todos los OTPs anteriores como usados
@@ -134,7 +156,7 @@ export async function POST(req: NextRequest) {
         expiresAt: { gt: new Date() },
       },
       orderBy: {
-        createdAt: "desc"
+        createdAt: "desc",
       },
     });
 
@@ -152,12 +174,12 @@ export async function POST(req: NextRequest) {
     await prisma.$transaction([
       prisma.oTP.update({
         where: { id: latestOtp.id },
-        data: { isUsed: true }
+        data: { isUsed: true },
       }),
       prisma.user.update({
         where: { email },
         data: { isVerified: true },
-      })
+      }),
     ]);
 
     console.log("Email verificado exitosamente");

@@ -12,7 +12,7 @@ import {
 import { signOut, useSession } from "next-auth/react";
 
 export default function ConfirmEmail() {
-  const { data: session } = useSession(); // Usar el hook useSession para obtener la sesión
+  const { data: session, status } = useSession(); // Agregamos status para verificar el estado de la sesión
   const [showOTP, setShowOTP] = useState(false);
   const [otp, setOtp] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
@@ -23,6 +23,13 @@ export default function ConfirmEmail() {
   const isFetchingRef = useRef(false);
   // Usar useRef para controlar si el componente está montado
   const isMountedRef = useRef(true);
+
+  // Redirigir si no hay sesión
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/");
+    }
+  }, [status, router]);
 
   // Función para obtener OTP del servidor
   const fetchOtp = useCallback(async () => {
@@ -73,11 +80,17 @@ export default function ConfirmEmail() {
       // Resetear el flag de fetching
       isFetchingRef.current = false;
     }
-  }, [session?.user?.email, setErrorMessage, setOtpFromServer]); // Incluir todas las dependencias
+  }, [session?.user?.email, setErrorMessage, setOtpFromServer, router]);
 
-  console.log("Entramos en useEffect");
+  console.log("Antes de entrar en useEffect");
+  const [isEmailSent, setIsEmailSent] = useState(false);
+  console.log("sesion?.user?.email:", session?.user?.email);
+  console.log("isEmailSent:", isEmailSent);
   // useEffect con cleanup
   useEffect(() => {
+    // Si el status está cargando o no hay sesión, no hacer nada
+    if (status === "loading" || !session) return;
+
     // Marcar el componente como montado
     isMountedRef.current = true;
     console.log("En en useEffect");
@@ -112,13 +125,18 @@ export default function ConfirmEmail() {
       }
     };
     console.log("Fuera de initiateFetch, segundo initiateFetch");
-    initiateFetch();
-
+    if (!isEmailSent) {
+      initiateFetch();
+      setIsEmailSent(true);
+    }
+    console.log("Antes de salir de useeffect");
+    console.log("sesion?.user?.email:", session?.user?.email);
+    console.log("isEmailSent:", isEmailSent);
     return () => {
       isMounted = false;
       isMountedRef.current = false;
     };
-  }, [showOTP, session?.user?.email, fetchOtp]);
+  }, [session, status, fetchOtp, showOTP, otpFromServer, isEmailSent, router]);
 
   const handleContinueClick = async () => {
     console.log("Botón 'Continuar' presionado, estado showOTP:", showOTP);
@@ -140,7 +158,7 @@ export default function ConfirmEmail() {
                 "Content-Type": "application/json",
               },
               body: JSON.stringify({
-                email: session.user.email, // Aquí ya podemos usarlo sin error
+                email: session.user.email,
                 otpCode: otp,
               }),
             });
@@ -171,24 +189,33 @@ export default function ConfirmEmail() {
         console.log("El código introducido no es válido.");
       }
     } else {
-      setShowOTP(true); // Muestra el OTP si no se ha mostrado aún
+      setShowOTP(true);
       console.log("showOTP se establece en true, OTP visible para el usuario.");
     }
   };
 
   // Función para limpiar el campo OTP
   const handleClearOTP = () => {
-    setOtp(""); // Limpia el estado del OTP
+    setOtp("");
     setErrorMessage("");
     console.log("OTP y mensaje de error limpiados.");
   };
+
+  // Si el status está cargando, puedes mostrar un loading o null
+  if (status === "loading") {
+    return null;
+  }
 
   return (
     <div className="flex items-center justify-center min-h-screen p-4 bg-white relative">
       {/* Mostrar botón solo si hay sesión */}
       {session && (
         <Button
-          onClick={async () => await signOut()}
+          onClick={() => {
+            // router.push('/');
+            console.log("Cierra sesion y lleva al landing");
+            signOut();
+          }}
           className="absolute top-4 right-4 bg-gray-200 text-gray-700 hover:bg-gray-300"
         >
           <span className="text-sm">Cerrar sesión</span>

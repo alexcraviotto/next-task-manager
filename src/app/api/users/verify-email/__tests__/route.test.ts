@@ -26,12 +26,13 @@ const prismaClientMock = {
     create: jest.fn(),
     updateMany: jest.fn(),
     findFirst: jest.fn(),
+    update: jest.fn(),
   },
   $transaction: jest.fn(),
 };
 
-jest.mock("@prisma/client", () => ({
-  PrismaClient: jest.fn(() => prismaClientMock),
+jest.mock("@/lib/database", () => ({
+  prisma: prismaClientMock,
 }));
 
 import { GET, POST } from "../route";
@@ -94,6 +95,32 @@ describe("Email Verification API", () => {
       expect(data).toEqual({ verified: true });
     });
 
+    it("should return 429 if requesting OTP before 5 minutes", async () => {
+      const mockUser = {
+        id: "1",
+        email: "test@example.com",
+        username: "testuser",
+        isVerified: false,
+      };
+
+      (getServerSession as jest.Mock).mockResolvedValue({
+        user: { email: mockUser.email },
+      });
+      prismaClientMock.user.findUnique.mockResolvedValue(mockUser);
+      prismaClientMock.oTP.findFirst.mockResolvedValue({
+        createdAt: new Date(Date.now() - 2 * 60 * 1000), // 2 minutes ago
+        isUsed: false,
+      });
+
+      const response = await GET();
+      const data = await response.json();
+
+      expect(response.status).toBe(429);
+      expect(data).toEqual({
+        message: "Please wait 5 minutes before requesting a new OTP",
+      });
+    });
+
     it("should generate new OTP and send email for unverified user", async () => {
       const mockUser = {
         id: "1",
@@ -106,6 +133,7 @@ describe("Email Verification API", () => {
         user: { email: mockUser.email },
       });
       prismaClientMock.user.findUnique.mockResolvedValue(mockUser);
+      prismaClientMock.oTP.findFirst.mockResolvedValue(null);
       prismaClientMock.oTP.create.mockResolvedValue({
         id: "1",
         code: "123456",
@@ -136,6 +164,7 @@ describe("Email Verification API", () => {
         user: { email: mockUser.email },
       });
       prismaClientMock.user.findUnique.mockResolvedValue(mockUser);
+      prismaClientMock.oTP.findFirst.mockResolvedValue(null);
       const mockTransporter = {
         sendMail: jest
           .fn()
@@ -164,7 +193,6 @@ describe("Email Verification API", () => {
     };
 
     it("should return 400 if email or OTP is missing", async () => {
-      // Testing when otpCode is missing
       const response = await POST(
         mockRequest({ email: "test@example.com", otpCode: "" }),
       );
@@ -188,78 +216,60 @@ describe("Email Verification API", () => {
       expect(response.status).toBe(400);
       expect(data).toEqual({ message: "Invalid OTP or user not found" });
     });
-    /*
+
     it("should verify email successfully with valid OTP", async () => {
       const testEmail = "test@example.com";
       const testOtpCode = "123456";
-    
-      // Crear un mock del OTP que coincida exactamente con lo que espera verificar
+
       const mockOTP = {
         id: "1",
         code: testOtpCode,
         email: testEmail,
         isUsed: false,
-        expiresAt: new Date(Date.now() + 3600000)
+        expiresAt: new Date(Date.now() + 3600000),
       };
-    
-      // Mock de las operaciones individuales
-      const mockOtpUpdate = {
-        id: mockOTP.id,
-        isUsed: true
-      };
-    
-      const mockUserUpdate = {
-        id: "1",
-        email: testEmail,
-        isVerified: true
-      };
-    
-      // Configurar el mock para devolver el OTP cuando se busque
+
       prismaClientMock.oTP.findFirst.mockResolvedValue(mockOTP);
-    
-      // Mock de la transacción exitosa
       prismaClientMock.$transaction.mockResolvedValue([
-        mockOtpUpdate,
-        mockUserUpdate
+        { id: "1", isUsed: true },
+        { email: testEmail, isVerified: true },
       ]);
-    
-      // Crear la request con los mismos valores que coincidan con el mock
-      const response = await POST(mockRequest({
-        email: testEmail,
-        otpCode: testOtpCode // Este código debe coincidir con mockOTP.code
-      }));
-    
+
+      const response = await POST(
+        mockRequest({
+          email: testEmail,
+          otpCode: testOtpCode,
+        }),
+      );
       const data = await response.json();
-    
-      // Verificar que findFirst fue llamado con los parámetros correctos
+
       expect(prismaClientMock.oTP.findFirst).toHaveBeenCalledWith({
         where: {
           email: testEmail,
           isUsed: false,
-          expiresAt: expect.any(Object)
+          expiresAt: expect.any(Object),
         },
         orderBy: {
-          createdAt: "desc"
-        }
+          createdAt: "desc",
+        },
       });
-    
-      // Verificar que la transacción fue llamada
-      expect(prismaClientMock.$transaction).toHaveBeenCalled();
+
+      // Actualizada la expectativa de la transacción
       expect(prismaClientMock.$transaction).toHaveBeenCalledWith([
-        expect.objectContaining({
+        prismaClientMock.oTP.update({
           where: { id: mockOTP.id },
-          data: { isUsed: true }
+          data: { isUsed: true },
         }),
-        expect.objectContaining({
+        prismaClientMock.user.update({
           where: { email: testEmail },
-          data: { isVerified: true }
-        })
+          data: { isVerified: true },
+        }),
       ]);
-    
+
       expect(response.status).toBe(200);
       expect(data).toEqual({ message: "Email verified successfully" });
-    });    
-    */
+    });
+
     it("should handle database errors during verification", async () => {
       prismaClientMock.oTP.findFirst.mockRejectedValue(new Error("DB Error"));
 
@@ -277,4 +287,3 @@ describe("Email Verification API", () => {
     });
   });
 });
-
