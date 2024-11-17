@@ -171,7 +171,7 @@ export function MembersTable({
     setIsLoading(true);
 
     try {
-      if (editingMember.id === -1) {
+      if (editingMember.id === -2) {
         // Validar el email en lugar del username
         if (!editingMember.email.trim()) {
           toast({
@@ -279,7 +279,7 @@ export function MembersTable({
 
   const handleAddMember = () => {
     setEditingMember({
-      id: -1,
+      id: -2,
       username: "",
       email: "",
       isAdmin: false,
@@ -406,7 +406,7 @@ export function MembersTable({
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>
-              {editingMember && editingMember.id !== -1
+              {editingMember && editingMember.id !== -2
                 ? "Editar Miembro"
                 : "Agregar Nuevo Miembro"}
             </DialogTitle>
@@ -499,7 +499,7 @@ export function MembersTable({
             disabled={isLoading}
           >
             <Save className="h-4 w-4 mr-2" />
-            {editingMember && editingMember.id !== -1
+            {editingMember && editingMember.id !== -2
               ? "Guardar Cambios"
               : "Agregar Miembro"}
           </Button>
