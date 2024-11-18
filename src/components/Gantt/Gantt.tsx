@@ -32,13 +32,13 @@ export default function Gantt({ tasks }: GanttProps) {
     gantt.config.columns = [
       {
         name: "text",
-        label: "Task name",
+        label: "Nombre de la tarea",
         tree: true,
         width: "*",
         resize: true,
       },
-      { name: "start_date", label: "Start time", align: "center" },
-      { name: "duration", label: "Duration", align: "center" },
+      { name: "start_date", label: "Tiempo inicial", align: "center" },
+      { name: "duration", label: "Duración", align: "center" },
     ];
 
     // Ajustar layout para manejar overflow correctamente

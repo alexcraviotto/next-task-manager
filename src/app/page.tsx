@@ -37,7 +37,8 @@ export default function Home() {
           Acelera tu desarrollo con Next.js y despliega con confianza
         </p>
         <Button size="lg" className="text-lg">
-          Comenzar ahora <ArrowRight className="ml-2" />
+          <a href="/auth/login">Comenzar ahora</a>
+          <ArrowRight className="ml-2" />
         </Button>
       </main>
 

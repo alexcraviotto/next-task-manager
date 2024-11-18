@@ -76,9 +76,9 @@ export async function POST(
 
   try {
     const { id } = params;
-    const { email, weight } = await req.json();
+    const { weight } = await req.json();
 
-    // Validate weight first
+    // Validate weight
     if (weight < 0 || weight > 5) {
       return NextResponse.json(
         { message: "Weight must be between 0 and 5" },
@@ -90,42 +90,60 @@ export async function POST(
       where: { email: session.user.email! },
       include: {
         createdOrgs: {
-          where: { createdById: Number(session.user.id) },
+          where: { id }, // Solo busca la organización específica
         },
       },
     });
 
     if (!currentUser?.createdOrgs?.length) {
-      return NextResponse.json({ message: "Not authorized" }, { status: 403 });
+      return NextResponse.json(
+        { message: "Not authorized to add members to this organization" },
+        { status: 403 },
+      );
     }
 
-    const userToAdd = await prisma.user.findUnique({
-      where: { email },
-    });
-
-    if (!userToAdd) {
-      return NextResponse.json({ message: "User not found" }, { status: 404 });
-    }
-
+    // Verificar si ya existe la relación
     const existingMember = await prisma.userOrganization.findUnique({
       where: {
         userId_organizationId: {
-          userId: userToAdd.id,
+          userId: currentUser.id,
           organizationId: id,
         },
       },
     });
 
     if (existingMember) {
-      return NextResponse.json(
-        { message: "Already a member" },
-        { status: 400 },
-      );
+      // Si ya existe, actualizar el peso
+      const updatedMember = await prisma.userOrganization.update({
+        where: {
+          userId_organizationId: {
+            userId: currentUser.id,
+            organizationId: id,
+          },
+        },
+        data: {
+          weight,
+        },
+        include: {
+          User: true,
+        },
+      });
+
+      return NextResponse.json({
+        id: updatedMember.userId,
+        username: updatedMember.User.username,
+        email: updatedMember.User.email,
+        isAdmin: updatedMember.User.isAdmin,
+        createdAt: updatedMember.User.createdAt.toISOString(),
+        updatedAt: updatedMember.User.updatedAt.toISOString(),
+        weight: updatedMember.weight,
+      });
     }
 
-    const member = await prisma.userOrganization.create({
+    // Si no existe, crear nuevo miembro
+    const newMember = await prisma.userOrganization.create({
       data: {
-        userId: userToAdd.id,
+        userId: currentUser.id,
         organizationId: id,
         weight: weight || 0,
       },
@@ -135,13 +153,13 @@ export async function POST(
     });
 
     return NextResponse.json({
-      id: member.userId,
-      username: member.User.username,
-      email: member.User.email,
-      isAdmin: member.User.isAdmin,
-      createdAt: member.User.createdAt.toISOString(),
-      updatedAt: member.User.updatedAt.toISOString(),
-      weight: member.weight,
+      id: newMember.userId,
+      username: newMember.User.username,
+      email: newMember.User.email,
+      isAdmin: newMember.User.isAdmin,
+      createdAt: newMember.User.createdAt.toISOString(),
+      updatedAt: newMember.User.updatedAt.toISOString(),
+      weight: newMember.weight,
     });
   } catch (error) {
     console.error("Error adding member:", error);

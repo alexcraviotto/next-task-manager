@@ -46,6 +46,7 @@ describe("POST /api/organizations", () => {
         email: "test@example.com",
         isAdmin: false,
         username: "test",
+        name: "Test User",
       },
     };
 
@@ -145,6 +146,7 @@ describe("GET /api/organizations", () => {
         email: "test@example.com",
         isAdmin: false,
         username: "test",
+        name: "Test User",
       },
     };
 

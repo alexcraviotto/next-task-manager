@@ -21,7 +21,7 @@ export const authOptions: AuthOptions = {
           where: { email: credentials.email },
         });
 
-        if (!user) {
+        if (!user || !user.isActive) {
           throw new Error("User not found");
         }
 
@@ -38,9 +38,11 @@ export const authOptions: AuthOptions = {
           id: user.id.toString(),
           email: user.email,
           username: user.username,
+          name: user.name,
           isAdmin: user.isAdmin,
           createdAt: user.createdAt,
           updatedAt: user.updatedAt,
+          isVerified: user.isVerified,
         };
       },
     }),
@@ -50,6 +52,7 @@ export const authOptions: AuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.isAdmin = user.isAdmin;
+        token.isVerified = user.isVerified;
       }
       return token;
     },

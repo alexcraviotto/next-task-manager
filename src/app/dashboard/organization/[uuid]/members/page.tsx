@@ -2,19 +2,17 @@
 
 import { DashboardStructure } from "@/components/dashboard/DashboardStructure";
 import { DashboardTitle } from "@/components/dashboard/DashboardTitle";
-import { MembersSkeleton } from "@/components/dashboard/members/MembersSkeleton";
-import { MembersTable } from "@/components/dashboard/members/MembersTable";
-import { useMembers } from "@/hooks/use-members";
-import { useParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
+import { MembersTable } from "@/components/dashboard/members/MembersTable";
+import { MembersSkeleton } from "@/components/dashboard/members/MembersSkeleton";
+import { useMembers } from "@/hooks/use-members";
 
-export default function Dashboard() {
-  const params = useParams();
+export default function Dashboard({ params }: { params: { uuid: string } }) {
   const organizationId = params?.uuid as string;
-
   const { members, isLoading, addMember, updateMember, deleteMember } =
     useMembers(organizationId);
-
+  const { data: session } = useSession();
   if (!organizationId || isLoading) {
     return (
       <DashboardStructure>
@@ -22,6 +20,10 @@ export default function Dashboard() {
         <MembersSkeleton />
       </DashboardStructure>
     );
+  }
+
+  if (!session?.user?.isAdmin) {
+    return null;
   }
 
   return (
@@ -41,9 +43,9 @@ export default function Dashboard() {
         <MembersTable
           organizationId={organizationId}
           members={members}
-          onAddMember={addMember}
           onUpdateMember={updateMember}
           onDeleteMember={deleteMember}
+          onAddMember={addMember}
         />
       </motion.div>
     </DashboardStructure>

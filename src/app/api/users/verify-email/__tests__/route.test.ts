@@ -2,248 +2,288 @@
  * @jest-environment node
  */
 import "dotenv/config";
+import { getServerSession } from "next-auth";
+import nodemailer from "nodemailer";
+import { NextRequest } from "next/server";
 
-// Definir prismaClientMock antes de los mocks
+// Mock next-auth
+jest.mock("next-auth");
+
+// Mock nodemailer
+jest.mock("nodemailer", () => ({
+  createTransport: jest.fn(() => ({
+    sendMail: jest.fn().mockResolvedValue(true),
+  })),
+}));
+
+// Mock Prisma client
 const prismaClientMock = {
   user: {
     findUnique: jest.fn(),
-    create: jest.fn(),
     update: jest.fn(),
   },
   oTP: {
     create: jest.fn(),
+    updateMany: jest.fn(),
+    findFirst: jest.fn(),
+    update: jest.fn(),
   },
+  $transaction: jest.fn(),
 };
 
-// Mock de @prisma/client
-jest.mock("@prisma/client", () => ({
-  PrismaClient: jest.fn(() => prismaClientMock),
-}));
-
-// Mock de bcrypt y nodemailer
-jest.mock("bcrypt", () => ({
-  hash: jest.fn(() => Promise.resolve("hashedPassword123")),
-}));
-
-// Mock Nodemailer
-jest.mock("nodemailer", () => ({
-  createTransport: jest.fn().mockReturnValue({
-    sendMail: jest.fn().mockResolvedValue("Email sent successfully"),
-  }),
-}));
-
-import { getServerSession } from "next-auth";
-import { NextRequest } from "next/server";
-
-// Mock de getServerSession
-jest.mock("next-auth", () => ({
-  getServerSession: jest.fn(),
+jest.mock("@/lib/database", () => ({
+  prisma: prismaClientMock,
 }));
 
 import { GET, POST } from "../route";
 
-// Tests para el controlador GET
-describe("GET /api/auth/verify-email", () => {
+describe("Email Verification API", () => {
+  const originalConsoleLog = console.log;
+  const originalConsoleError = console.error;
+
   beforeEach(() => {
     jest.clearAllMocks();
+    console.log = jest.fn();
+    console.error = jest.fn();
   });
 
-  it("should return OTP code successfully if user is authenticated and OTP is valid but not verified", async () => {
-    const userEmail = "test@example.com";
-    const mockOtpCode = "123456";
+  afterEach(() => {
+    console.log = originalConsoleLog;
+    console.error = originalConsoleError;
+  });
 
-    // Mock authenticated session
-    const mockSession = {
-      user: { email: userEmail },
+  describe("GET /api/verify-email", () => {
+    it("should return 401 when no session exists", async () => {
+      (getServerSession as jest.Mock).mockResolvedValue(null);
+
+      const response = await GET();
+      const data = await response.json();
+
+      expect(response.status).toBe(401);
+      expect(data).toEqual({
+        message: "User is not authenticated or email is missing",
+      });
+    });
+
+    it("should return 404 when user not found", async () => {
+      (getServerSession as jest.Mock).mockResolvedValue({
+        user: { email: "test@example.com" },
+      });
+      prismaClientMock.user.findUnique.mockResolvedValue(null);
+
+      const response = await GET();
+      const data = await response.json();
+
+      expect(response.status).toBe(404);
+      expect(data).toEqual({ message: "Usuario no encontrado" });
+    });
+
+    it("should return verified true if user is already verified", async () => {
+      (getServerSession as jest.Mock).mockResolvedValue({
+        user: { email: "test@example.com" },
+      });
+      prismaClientMock.user.findUnique.mockResolvedValue({
+        id: "1",
+        email: "test@example.com",
+        isVerified: true,
+      });
+
+      const response = await GET();
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data).toEqual({ verified: true });
+    });
+
+    it("should return 429 if requesting OTP before 5 minutes", async () => {
+      const mockUser = {
+        id: "1",
+        email: "test@example.com",
+        username: "testuser",
+        isVerified: false,
+      };
+
+      (getServerSession as jest.Mock).mockResolvedValue({
+        user: { email: mockUser.email },
+      });
+      prismaClientMock.user.findUnique.mockResolvedValue(mockUser);
+      prismaClientMock.oTP.findFirst.mockResolvedValue({
+        createdAt: new Date(Date.now() - 2 * 60 * 1000), // 2 minutes ago
+        isUsed: false,
+      });
+
+      const response = await GET();
+      const data = await response.json();
+
+      expect(response.status).toBe(429);
+      expect(data).toEqual({
+        message: "Please wait 5 minutes before requesting a new OTP",
+      });
+    });
+
+    it("should generate new OTP and send email for unverified user", async () => {
+      const mockUser = {
+        id: "1",
+        email: "test@example.com",
+        username: "testuser",
+        isVerified: false,
+      };
+
+      (getServerSession as jest.Mock).mockResolvedValue({
+        user: { email: mockUser.email },
+      });
+      prismaClientMock.user.findUnique.mockResolvedValue(mockUser);
+      prismaClientMock.oTP.findFirst.mockResolvedValue(null);
+      prismaClientMock.oTP.create.mockResolvedValue({
+        id: "1",
+        code: "123456",
+        email: mockUser.email,
+        isUsed: false,
+      });
+
+      const response = await GET();
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.verified).toBe(false);
+      expect(data.otp).toBeDefined();
+      expect(prismaClientMock.oTP.updateMany).toHaveBeenCalled();
+      expect(prismaClientMock.oTP.create).toHaveBeenCalled();
+      expect(nodemailer.createTransport).toHaveBeenCalled();
+    });
+
+    it("should handle email sending error", async () => {
+      const mockUser = {
+        id: "1",
+        email: "test@example.com",
+        username: "testuser",
+        isVerified: false,
+      };
+
+      (getServerSession as jest.Mock).mockResolvedValue({
+        user: { email: mockUser.email },
+      });
+      prismaClientMock.user.findUnique.mockResolvedValue(mockUser);
+      prismaClientMock.oTP.findFirst.mockResolvedValue(null);
+      const mockTransporter = {
+        sendMail: jest
+          .fn()
+          .mockRejectedValue(new Error("Email sending failed")),
+      };
+      (nodemailer.createTransport as jest.Mock).mockReturnValue(
+        mockTransporter,
+      );
+
+      const response = await GET();
+      const data = await response.json();
+
+      expect(response.status).toBe(500);
+      expect(data).toEqual({ message: "Error sending email" });
+    });
+  });
+
+  describe("POST /api/verify-email", () => {
+    const mockRequest = (body: {
+      email: string;
+      otpCode: string;
+    }): NextRequest => {
+      return {
+        json: () => Promise.resolve(body),
+      } as NextRequest;
     };
-    (getServerSession as jest.Mock).mockResolvedValueOnce(mockSession);
 
-    // Mock valid user and OTP, but user is not verified
-    prismaClientMock.user.findUnique.mockResolvedValueOnce({
-      id: 1,
-      email: userEmail,
-      isVerified: false,
-      otps: [
-        {
-          code: mockOtpCode,
-          email: userEmail,
+    it("should return 400 if email or OTP is missing", async () => {
+      const response = await POST(
+        mockRequest({ email: "test@example.com", otpCode: "" }),
+      );
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data).toEqual({ message: "Email and OTP code are required" });
+    });
+
+    it("should return 400 for invalid OTP", async () => {
+      prismaClientMock.oTP.findFirst.mockResolvedValue(null);
+
+      const response = await POST(
+        mockRequest({
+          email: "test@example.com",
+          otpCode: "123456",
+        }),
+      );
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data).toEqual({ message: "Invalid OTP or user not found" });
+    });
+
+    it("should verify email successfully with valid OTP", async () => {
+      const testEmail = "test@example.com";
+      const testOtpCode = "123456";
+
+      const mockOTP = {
+        id: "1",
+        code: testOtpCode,
+        email: testEmail,
+        isUsed: false,
+        expiresAt: new Date(Date.now() + 3600000),
+      };
+
+      prismaClientMock.oTP.findFirst.mockResolvedValue(mockOTP);
+      prismaClientMock.$transaction.mockResolvedValue([
+        { id: "1", isUsed: true },
+        { email: testEmail, isVerified: true },
+      ]);
+
+      const response = await POST(
+        mockRequest({
+          email: testEmail,
+          otpCode: testOtpCode,
+        }),
+      );
+      const data = await response.json();
+
+      expect(prismaClientMock.oTP.findFirst).toHaveBeenCalledWith({
+        where: {
+          email: testEmail,
           isUsed: false,
-          expiresAt: new Date("2025-02-01T00:00:00Z"),
-          userId: 1,
+          expiresAt: expect.any(Object),
         },
-      ],
-    });
-
-    const response = await GET();
-    const data = await response.json();
-
-    expect(response.status).toBe(200);
-    expect(data).toEqual({ otp: mockOtpCode, verified: false });
-
-    const expectedCall = {
-      where: { email: userEmail },
-      include: {
-        otps: {
-          where: {
-            isUsed: false,
-            expiresAt: { gt: expect.any(Date) },
-          },
-          orderBy: { createdAt: "desc" },
-          take: 1,
+        orderBy: {
+          createdAt: "desc",
         },
-      },
-    };
+      });
 
-    expect(prismaClientMock.user.findUnique).toHaveBeenCalledWith(
-      expect.objectContaining(expectedCall),
-    );
-  });
+      // Actualizada la expectativa de la transacción
+      expect(prismaClientMock.$transaction).toHaveBeenCalledWith([
+        prismaClientMock.oTP.update({
+          where: { id: mockOTP.id },
+          data: { isUsed: true },
+        }),
+        prismaClientMock.user.update({
+          where: { email: testEmail },
+          data: { isVerified: true },
+        }),
+      ]);
 
-  it("should return 404 if user is not found", async () => {
-    const userEmail = "test@example.com";
-
-    // Mock authenticated session
-    const mockSession = {
-      user: { email: userEmail },
-    };
-    (getServerSession as jest.Mock).mockResolvedValueOnce(mockSession);
-
-    // Mock user not found
-    prismaClientMock.user.findUnique.mockResolvedValueOnce(null);
-
-    const response = await GET();
-    const data = await response.json();
-
-    expect(response.status).toBe(404);
-    expect(data).toEqual({ message: "User not found" });
-  });
-
-  it("should return 500 if there's an internal server error", async () => {
-    const userEmail = "test@example.com";
-
-    // Mock authenticated session
-    const mockSession = {
-      user: { email: userEmail },
-    };
-    (getServerSession as jest.Mock).mockResolvedValueOnce(mockSession);
-
-    // Mock database error
-    prismaClientMock.user.findUnique.mockRejectedValueOnce(
-      new Error("Database error"),
-    );
-
-    const response = await GET();
-    const data = await response.json();
-
-    expect(response.status).toBe(500);
-    expect(data).toEqual({ message: "Internal Server Error" });
-  });
-
-  it("should return 401 if user is not authenticated", async () => {
-    // Mock unauthenticated session
-    (getServerSession as jest.Mock).mockResolvedValueOnce(null);
-
-    const response = await GET();
-    const data = await response.json();
-
-    expect(response.status).toBe(401);
-    expect(data).toEqual({
-      message: "User is not authenticated or email is missing",
-    });
-  });
-});
-
-// Tests para el controlador POST
-describe("POST /api/auth/verify-email", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  it("should verify email successfully with correct OTP", async () => {
-    const userEmail = "test@example.com";
-    const otpCode = "123456";
-
-    const req = {
-      json: jest.fn().mockResolvedValueOnce({ email: userEmail, otpCode }),
-    } as unknown as NextRequest;
-
-    // Mock valid user and OTP
-    prismaClientMock.user.findUnique.mockResolvedValueOnce({
-      id: 1,
-      email: userEmail,
-      otps: [
-        {
-          code: otpCode,
-          isUsed: false,
-          expiresAt: new Date("2025-02-01T00:00:00Z"),
-        },
-      ],
+      expect(response.status).toBe(200);
+      expect(data).toEqual({ message: "Email verified successfully" });
     });
 
-    const response = await POST(req);
-    const data = await response.json();
+    it("should handle database errors during verification", async () => {
+      prismaClientMock.oTP.findFirst.mockRejectedValue(new Error("DB Error"));
 
-    expect(response.status).toBe(200);
-    expect(data).toEqual({ message: "Email verified successfully" });
+      const response = await POST(
+        mockRequest({
+          email: "test@example.com",
+          otpCode: "123456",
+        }),
+      );
+      const data = await response.json();
 
-    // Check that user verification update was called
-    expect(prismaClientMock.user.update).toHaveBeenCalledWith({
-      where: { email: userEmail },
-      data: { isVerified: true },
+      expect(response.status).toBe(500);
+      expect(data).toEqual({ message: "Internal Server Error" });
+      expect(console.error).toHaveBeenCalled();
     });
-  });
-
-  it("should return 400 if OTP is invalid or user not found", async () => {
-    const userEmail = "test@example.com";
-    const otpCode = "123456";
-
-    const req = {
-      json: jest.fn().mockResolvedValueOnce({ email: userEmail, otpCode }),
-    } as unknown as NextRequest;
-
-    // Mock user not found or invalid OTP
-    prismaClientMock.user.findUnique.mockResolvedValueOnce({
-      id: 1,
-      email: userEmail,
-      otps: [],
-    });
-
-    const response = await POST(req);
-    const data = await response.json();
-
-    expect(response.status).toBe(400);
-    expect(data).toEqual({ message: "Invalid OTP or user not found" });
-  });
-
-  it("should return 400 if email or OTP code is missing", async () => {
-    const req = {
-      json: jest.fn().mockResolvedValueOnce({ email: null, otpCode: null }),
-    } as unknown as NextRequest;
-
-    const response = await POST(req);
-    const data = await response.json();
-
-    expect(response.status).toBe(400);
-    expect(data).toEqual({ message: "Email and OTP code are required" });
-  });
-
-  it("should return 500 if there's an internal server error", async () => {
-    const userEmail = "test@example.com";
-    const otpCode = "123456";
-
-    const req = {
-      json: jest.fn().mockResolvedValueOnce({ email: userEmail, otpCode }),
-    } as unknown as NextRequest;
-
-    // Mock database error
-    prismaClientMock.user.findUnique.mockRejectedValueOnce(
-      new Error("Database error"),
-    );
-
-    const response = await POST(req);
-    const data = await response.json();
-
-    expect(response.status).toBe(500);
-    expect(data).toEqual({ message: "Internal Server Error" });
   });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -17,15 +17,24 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
+import { signOut } from "next-auth/react";
 
 const formSchema = z.object({
-  username: z.string().min(3, "Username must be at least 3 characters"),
-  email: z.string().email("Please enter a valid email"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  username: z
+    .string()
+    .min(3, "Username must be at least 3 characters")
+    .optional(),
+  email: z.string().email("Please enter a valid email").optional(),
+  password: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
-
+interface User {
+  username: string;
+  email: string;
+  password: string;
+  id: string;
+}
 export default function Settings({
   params,
 }: {
@@ -42,19 +51,56 @@ export default function Settings({
       password: "",
     },
   });
+  const [user, setUser] = useState<User | null>(null);
+
+  // Esto es lo añadido
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch("/api/users/me");
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.error || "Failed to fetch user");
+        }
+        console.log(
+          "🚀 ~ fetchUser ~ result.user:",
+          JSON.stringify(result.user),
+        );
+
+        setUser(result.user);
+        form.reset(result.user);
+      } catch (error) {
+        console.error("🚀 ~ fetchUser ~ error:", error);
+        toast({
+          description:
+            error instanceof Error ? error.message : "Failed to fetch user",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchUser();
+  }, [form, toast]);
 
   const onSubmit = async (data: FormValues) => {
     try {
       setIsLoading(true);
 
       // Llamada al endpoint
-      const response = await fetch("/api/profile", {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await fetch(
+        `/api/dashboard/proyects/${user?.id}/settings/update-profile`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(data),
         },
-        body: JSON.stringify(data),
-      });
+      );
 
       const result = await response.json();
 
@@ -90,9 +136,12 @@ export default function Settings({
   const handleDeleteAccount = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch("/api/profile", {
-        method: "DELETE",
-      });
+      const response = await fetch(
+        `/api/dashboard/proyects/${user?.id}/settings/delete-profile`,
+        {
+          method: "DELETE",
+        },
+      );
 
       const result = await response.json();
 
@@ -104,9 +153,10 @@ export default function Settings({
       toast({
         description: result.message || "Account deleted successfully",
       });
+      await signOut();
 
       // Redirigir al usuario al login
-      window.location.href = "/login";
+      window.location.href = "/auth/login";
     } catch (error) {
       console.error("Account deletion error:", error);
       toast({
@@ -129,11 +179,11 @@ export default function Settings({
             name="username"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Username</FormLabel>
+                <FormLabel>Usuario</FormLabel>
                 <FormControl>
                   <Input
                     {...field}
-                    placeholder="Enter your username"
+                    placeholder="Introduce tu usuario"
                     disabled={isLoading}
                   />
                 </FormControl>
@@ -152,7 +202,7 @@ export default function Settings({
                   <Input
                     {...field}
                     type="email"
-                    placeholder="Enter your email"
+                    placeholder="Introduce tu correo electrónico"
                     disabled={isLoading}
                   />
                 </FormControl>
@@ -166,14 +216,9 @@ export default function Settings({
             name="password"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Password</FormLabel>
+                <FormLabel>Nueva Contraseña</FormLabel>
                 <FormControl>
-                  <Input
-                    {...field}
-                    type="password"
-                    placeholder="********"
-                    disabled={isLoading}
-                  />
+                  <Input {...field} type="password" disabled={isLoading} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -186,7 +231,7 @@ export default function Settings({
               className="w-full bg-black hover:bg-black/90"
               disabled={isLoading}
             >
-              {isLoading ? "Updating..." : "Update Profile"}
+              {isLoading ? "Actualizando..." : "Actualizar perfil"}
             </Button>
 
             <Button
@@ -196,7 +241,7 @@ export default function Settings({
               onClick={handleDeleteAccount}
               disabled={isLoading}
             >
-              {isLoading ? "Deleting..." : "Delete Account"}
+              {isLoading ? "Eliminando..." : "Eliminar cuenta"}
             </Button>
           </div>
         </form>

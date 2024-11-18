@@ -1,15 +1,14 @@
 import { withAuth } from "next-auth/middleware";
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
 // Definir rutas públicas
 const publicPaths = [
   "/",
   "/auth/login",
   "/auth/register",
-  "/auth/signin",
+  "/auth/confirm-email",
   "/api/auth/signin",
 ];
-
 // Definir extensiones de archivos públicos
 const publicFileExtensions = [
   ".png",
@@ -24,54 +23,84 @@ const publicFileExtensions = [
 ];
 
 export default withAuth(
-  async function middleware(request: NextRequest) {
+  function middleware(request) {
     const { pathname } = request.nextUrl;
-    console.log("🚀 ~ middleware ~ pathname:", pathname);
+    const { origin } = request.nextUrl;
+    const token = request.nextauth.token;
 
-    // Permitir acceso a rutas de optimización de imágenes de Next.js
-    if (pathname.startsWith("/_next/image")) {
-      return NextResponse.next();
-    }
-
-    // Permitir acceso a la carpeta public y archivos estáticos
+    // First check: API routes and static resources
     if (
+      pathname.startsWith("/_next/") ||
       pathname.startsWith("/public") ||
-      publicFileExtensions.some((ext) => pathname.includes(ext)) ||
-      pathname.includes("api")
+      pathname.startsWith("/api/") ||
+      (publicFileExtensions.some((ext) => pathname.includes(ext)) && !token)
     ) {
       return NextResponse.next();
     }
 
-    // Permitir rutas públicas
-    if (publicPaths.includes(pathname)) {
-      return NextResponse.next();
+    // Second check: Auth redirects
+    if (token?.isVerified) {
+      // Redirect from auth pages to dashboard if verified
+      if (pathname.startsWith("/auth/")) {
+        return NextResponse.redirect(`${origin}/dashboard/organization`);
+      }
     }
 
+    // Third check: Dashboard access protection
+    if (pathname.startsWith("/dashboard") && !token) {
+      return NextResponse.redirect(`${origin}/auth/login`);
+    }
+
+    // Corregir la redirección de la ruta base de una organización a /tasks usando URL absoluta
+    if (
+      pathname.match(/^\/dashboard\/organization\/[^/]+$/) &&
+      !pathname.endsWith("/tasks") &&
+      !token?.isAdmin
+    ) {
+      const url = new URL(pathname + "/tasks", origin);
+      return NextResponse.redirect(url);
+    }
+
+    // Corregir redirección de usuarios no admin usando URL absoluta
+    if (
+      !token?.isAdmin &&
+      pathname.includes("/dashboard/organization/") &&
+      (pathname.includes("/members") ||
+        pathname.includes("/gantt") ||
+        pathname.includes("/versions"))
+    ) {
+      const orgId = pathname.split("/")[3];
+      const url = new URL(`/dashboard/organization/${orgId}/tasks`, origin);
+      return NextResponse.redirect(url);
+    }
+    // Permitir el resto de las rutas
     return NextResponse.next();
   },
+
   {
     callbacks: {
-      authorized: ({ req, token }) => {
+      authorized: ({ token, req }) => {
         const { pathname } = req.nextUrl;
 
-        // Permitir acceso a carpeta public y rutas públicas sin token
-        if (pathname.startsWith("/public") || publicPaths.includes(pathname)) {
+        // Permitir rutas públicas
+        if (
+          pathname.startsWith("/public") ||
+          publicPaths.includes(pathname) ||
+          pathname.startsWith("/_next/")
+        ) {
           return true;
         }
 
-        if (!token) return false;
-
-        const expiration = token.exp as number;
-        if (expiration && Date.now() / 1000 > expiration) {
-          if (pathname.includes("/dashboard")) {
-            return false;
-          }
+        // Requerir autenticación para rutas del dashboard
+        if (pathname.startsWith("/dashboard")) {
+          return !!token;
         }
+
         return true;
       },
     },
     pages: {
-      signIn: "/auth/login", // Redirigir a tu página de login personalizada
+      signIn: "/auth/login",
     },
   },
 );
