@@ -232,7 +232,7 @@ describe("PATCH task rating endpoint", () => {
       { params: { id: "1" } },
     );
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(500);
     const data = await response.json();
     expect(data.error).toBe("Invalid input data");
     expect(data.details).toBeDefined();

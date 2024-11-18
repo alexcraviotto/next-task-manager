@@ -21,6 +21,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Member } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface MembersTableProps {
   members: Member[];
@@ -427,6 +434,7 @@ export function MembersTable({
                   id="email"
                   type="email"
                   value={editingMember?.email || ""}
+                  disabled={memberExists}
                   onChange={(e) => {
                     setEditingMember({
                       ...editingMember,
@@ -442,60 +450,53 @@ export function MembersTable({
                 )}
               </div>
             </div>
-            {/* <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="isAdmin" className="text-right">
-                                Rol
-                            </Label>
-                            <Select
-                                value={
-                                    editingMember?.isAdmin ? "admin" : "user"
-                                }
-                                onValueChange={(value) =>
-                                    setEditingMember({
-                                        ...editingMember,
-                                        isAdmin: value === "admin",
-                                    })
-                                }
-                            >
-                                <SelectTrigger className="w-[180px]">
-                                    <SelectValue placeholder="Seleccionar rol" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="user">
-                                        Usuario
-                                    </SelectItem>
-                                    <SelectItem value="admin">
-                                        Administrador
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div> */}
-            {/* <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="weight" className="text-right">
-                                Peso
-                            </Label>
-                            <Input
-                                id="weight"
-                                type="number"
-                                value={editingMember?.weight || 0}
-                                min={0}
-                                max={5}
-                                onChange={(e) =>
-                                    setEditingMember({
-                                        ...editingMember,
-                                        weight: Math.min(
-                                            5,
-                                            Math.max(
-                                                0,
-                                                parseInt(e.target.value) || 0
-                                            )
-                                        ),
-                                    })
-                                }
-                                className="col-span-3"
-                            />
-                        </div> */}
+            {memberExists && (
+              <>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="isAdmin" className="text-right">
+                    Rol
+                  </Label>
+                  <Select
+                    value={editingMember?.isAdmin ? "admin" : "user"}
+                    onValueChange={(value) =>
+                      setEditingMember({
+                        ...editingMember,
+                        isAdmin: value === "admin",
+                      })
+                    }
+                  >
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Seleccionar rol" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="user">Usuario</SelectItem>
+                      <SelectItem value="admin">Administrador</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="weight" className="text-right">
+                    Peso
+                  </Label>
+                  <Input
+                    id="weight"
+                    type="number"
+                    value={editingMember?.weight || 0}
+                    min={0}
+                    onChange={(e) =>
+                      setEditingMember({
+                        ...editingMember,
+                        weight: parseInt(e.target.value),
+                      })
+                    }
+                    className="col-span-3"
+                  />
+                </div>
+              </>
+            )}
           </div>
+
           <Button
             onClick={handleSaveMember}
             className="w-full"
