@@ -666,7 +666,7 @@ export function TaskTable({
                 type="number"
                 id="peso"
                 value={editingTask?.weight || 0}
-                max={5}
+
                 min={0}
                 onChange={(e) =>
                   setEditingTask(
