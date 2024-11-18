@@ -6,7 +6,7 @@ import { authOptions } from "@/lib/authOptions";
 
 const updateRatingsSchema = z.object({
   organizationId: z.string(),
-  newWeight: z.number().min(0).max(5).int(),
+  newWeight: z.number().min(0).int(),
 });
 
 export async function PATCH(req: NextRequest) {
@@ -76,7 +76,6 @@ export async function PATCH(req: NextRequest) {
         let newSatisfaction =
           currentSatisfaction - previousWeight * currentWeight;
         newSatisfaction = newSatisfaction + newWeight * currentWeight;
-        newSatisfaction = Math.min(5, Math.max(0, Math.round(newSatisfaction)));
 
         return prisma.taskRating.update({
           where: {
