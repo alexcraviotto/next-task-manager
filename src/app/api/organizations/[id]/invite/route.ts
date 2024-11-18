@@ -6,30 +6,35 @@ import nodemailer from "nodemailer";
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
-  console.log("Session", session);
   if (!session?.user || !session.user.email || !session.user.isAdmin) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
   const searchParams = new URL(req.url).searchParams;
-  const username = searchParams.get("username");
+  const email = searchParams.get("email");
   const organizationId = req.url.split("/")[4];
 
-  if (!username || !organizationId) {
+  if (!email || !organizationId) {
     return NextResponse.json(
-      { message: "Username and organizationId are required" },
+      { message: "Email and organizationId are required" },
       { status: 400 },
     );
   }
 
   try {
     const user = await prisma.user.findFirst({
-      where: { username },
+      where: {
+        email,
+        isActive: true, // Verificar que el usuario esté activo
+      },
       select: { id: true, email: true, username: true },
     });
 
     if (!user) {
-      return NextResponse.json({ message: "User not found" }, { status: 404 });
+      return NextResponse.json(
+        { message: "Usuario no encontrado o inactivo" },
+        { status: 404 },
+      );
     }
 
     return NextResponse.json(user);

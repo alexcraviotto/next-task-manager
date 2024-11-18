@@ -19,13 +19,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Member } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 
@@ -45,14 +38,26 @@ interface UserInfo {
   username: string;
 }
 
+function getRandomId() {
+  return Math.floor(Math.random() * 1000000);
+}
+
 export function MembersTable({
   organizationId,
   members,
-  onAddMember,
   onUpdateMember,
   onDeleteMember,
 }: MembersTableProps) {
-  const [editingMember, setEditingMember] = useState<Member | null>(null);
+  const [editingMember, setEditingMember] = useState<Member>({
+    // create a random id
+    id: getRandomId(),
+    email: "",
+    isAdmin: false,
+    weight: 0,
+    username: "",
+    createdAt: "",
+    updatedAt: "",
+  });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
@@ -102,23 +107,29 @@ export function MembersTable({
   };
   useEffect(() => {
     if (!isDialogOpen) {
-      setEditingMember(null);
+      setEditingMember({
+        // create a random id
+        id: getRandomId(),
+        email: "",
+        isAdmin: false,
+        weight: 0,
+        username: "",
+        createdAt: "",
+        updatedAt: "",
+      });
       setFormErrors({});
     }
   }, [isDialogOpen]);
-  async function fetchUserByUsername(
-    username: string,
-  ): Promise<UserInfo | null> {
+  async function fetchUserByEmail(email: string): Promise<UserInfo | null> {
     try {
-      if (!username.trim()) {
+      if (!email.trim()) {
         toast({
-          description: "Por favor, ingrese un nombre de usuario",
+          description: "Por favor, ingrese un correo electrónico",
           variant: "destructive",
         });
         return null;
       }
 
-      // Verificar que organizationId exista
       if (!organizationId) {
         toast({
           description: "ID de organización no válido",
@@ -128,8 +139,8 @@ export function MembersTable({
       }
 
       const response = await fetch(
-        `/api/organizations/${organizationId}/invite?username=${encodeURIComponent(
-          username.trim(),
+        `/api/organizations/${organizationId}/invite?email=${encodeURIComponent(
+          email.trim(),
         )}`,
         {
           method: "GET",
@@ -146,7 +157,6 @@ export function MembersTable({
           return null;
         }
         await response.json();
-        //toast.error(error.message || "Error al buscar usuario");
         return null;
       }
 
@@ -162,41 +172,34 @@ export function MembersTable({
   }
 
   const handleSaveMember = async () => {
-    console.log("editingMember:", editingMember);
     if (!editingMember) return;
 
     if (!organizationId) {
-      //toast.error("ID de organización no válido");
       toast({
         description: "ID de organización no válido",
         variant: "destructive",
       });
       return;
     }
-    console.log("HOLA");
 
     setIsLoading(true);
 
     try {
-      if (editingMember.id === -1) {
-        // Validar el nombre de usuario
-        if (!editingMember.username.trim()) {
+      if (!members.map((m) => m.id).includes(editingMember.id)) {
+        // Validar el email en lugar del username
+        if (!editingMember.email.trim()) {
           toast({
-            description: "Por favor ingrese un nombre de usuario",
+            description: "Por favor ingrese un correo electrónico",
             variant: "destructive",
           });
           setIsLoading(false);
           return;
         }
-        // Buscar información del usuario
-        const userInfo = await fetchUserByUsername(editingMember.username);
+
+        // Buscar información del usuario por email
+        const userInfo = await fetchUserByEmail(editingMember.email);
         if (!userInfo) {
           setIsLoading(false);
-          toast({
-            description: "Usuario no encontrado",
-            variant: "destructive",
-          });
-          console.log("Usuario no encontrado");
           return;
         }
 
@@ -237,16 +240,12 @@ export function MembersTable({
         console.log("Response:", result); // Log para debug
 
         // Si todo sale bien, actualizar la UI
-        await onAddMember({
-          username: userInfo.username,
-          email: userInfo.email,
-          isAdmin: editingMember.isAdmin || false,
-          weight: editingMember.weight || 0,
-        });
+        console.log("userInfo:", userInfo);
+        console.log("Actualizar UI:");
 
         toast({
-          description: "Miembro agregado exitosamente",
-          variant: "default",
+          description: "Invitación a la organización realizada exitosamente.",
+          duration: 3000,
         });
         setIsDialogOpen(false);
       } else {
@@ -266,15 +265,24 @@ export function MembersTable({
 
         // Luego actualizamos el resto de la información del miembro
         await onUpdateMember(editingMember.id, editingMember);
+        toast({
+          description: "Miembro guardado correctamente",
+          duration: 3000,
+        });
       }
 
-      setEditingMember(null);
-      setIsDialogOpen(false);
-
-      toast({
-        description: "Miembro guardado correctamente",
-        duration: 3000,
+      setEditingMember({
+        // create a random id
+        id: getRandomId(),
+        email: "",
+        isAdmin: false,
+        weight: 0,
+        username: "",
+        createdAt: "",
+        updatedAt: "",
       });
+      setIsDialogOpen(false);
+      setIsLoading(false);
     } catch (error) {
       console.error("Error saving member:", error);
       toast({
@@ -287,15 +295,6 @@ export function MembersTable({
   };
 
   const handleAddMember = () => {
-    setEditingMember({
-      id: -1,
-      username: "",
-      email: "",
-      isAdmin: false,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      weight: 0,
-    });
     setIsDialogOpen(true);
   };
 
@@ -316,7 +315,7 @@ export function MembersTable({
       });
     }
   };
-
+  const memberExists = members.map((m) => m.id).includes(editingMember.id);
   return (
     <div className="w-full space-y-4 mt-10 relative">
       {isLoading && (
@@ -415,91 +414,87 @@ export function MembersTable({
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>
-              {editingMember && editingMember.id !== -1
-                ? "Editar Miembro"
-                : "Agregar Nuevo Miembro"}
+              {memberExists ? "Editar Miembro" : "Agregar Nuevo Miembro"}
             </DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="username" className="text-right">
-                Usuario
+              <Label htmlFor="email" className="text-right">
+                Email
               </Label>
               <div className="col-span-3">
                 <Input
-                  id="username"
-                  value={editingMember?.username || ""}
-                  onChange={(e) =>
-                    setEditingMember(
-                      editingMember
-                        ? {
-                            ...editingMember,
-                            username: e.target.value,
-                          }
-                        : null,
-                    )
-                  }
-                  className={formErrors.username ? "border-red-500" : ""}
+                  id="email"
+                  type="email"
+                  value={editingMember?.email || ""}
+                  onChange={(e) => {
+                    setEditingMember({
+                      ...editingMember,
+                      email: e.target.value,
+                    });
+                  }}
+                  className={formErrors.email ? "border-red-500" : ""}
                 />
-                {formErrors.username && (
+                {formErrors.email && (
                   <p className="text-red-500 text-sm mt-1">
-                    {formErrors.username}
+                    {formErrors.email}
                   </p>
                 )}
               </div>
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="isAdmin" className="text-right">
-                Rol
-              </Label>
-              <Select
-                value={editingMember?.isAdmin ? "admin" : "user"}
-                onValueChange={(value) =>
-                  setEditingMember(
-                    editingMember
-                      ? {
-                          ...editingMember,
-                          isAdmin: value === "admin",
-                        }
-                      : null,
-                  )
-                }
-              >
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Seleccionar rol" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="user">Usuario</SelectItem>
-                  <SelectItem value="admin">Administrador</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="weight" className="text-right">
-                Peso
-              </Label>
-              <Input
-                id="weight"
-                type="number"
-                value={editingMember?.weight || 0}
-                min={0}
-                max={5}
-                onChange={(e) =>
-                  setEditingMember(
-                    editingMember
-                      ? {
-                          ...editingMember,
-                          weight: Math.min(
-                            5,
-                            Math.max(0, parseInt(e.target.value) || 0),
-                          ),
-                        }
-                      : null,
-                  )
-                }
-                className="col-span-3"
-              />
-            </div>
+            {/* <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="isAdmin" className="text-right">
+                                Rol
+                            </Label>
+                            <Select
+                                value={
+                                    editingMember?.isAdmin ? "admin" : "user"
+                                }
+                                onValueChange={(value) =>
+                                    setEditingMember({
+                                        ...editingMember,
+                                        isAdmin: value === "admin",
+                                    })
+                                }
+                            >
+                                <SelectTrigger className="w-[180px]">
+                                    <SelectValue placeholder="Seleccionar rol" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="user">
+                                        Usuario
+                                    </SelectItem>
+                                    <SelectItem value="admin">
+                                        Administrador
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div> */}
+            {/* <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="weight" className="text-right">
+                                Peso
+                            </Label>
+                            <Input
+                                id="weight"
+                                type="number"
+                                value={editingMember?.weight || 0}
+                                min={0}
+                                max={5}
+                                onChange={(e) =>
+                                    setEditingMember({
+                                        ...editingMember,
+                                        weight: Math.min(
+                                            5,
+                                            Math.max(
+                                                0,
+                                                parseInt(e.target.value) || 0
+                                            )
+                                        ),
+                                    })
+                                }
+                                className="col-span-3"
+                            />
+                        </div> */}
           </div>
           <Button
             onClick={handleSaveMember}
@@ -507,9 +502,7 @@ export function MembersTable({
             disabled={isLoading}
           >
             <Save className="h-4 w-4 mr-2" />
-            {editingMember && editingMember.id !== -1
-              ? "Guardar Cambios"
-              : "Agregar Miembro"}
+            {memberExists ? "Guardar Cambios" : "Agregar Miembro"}
           </Button>
         </DialogContent>
       </Dialog>
