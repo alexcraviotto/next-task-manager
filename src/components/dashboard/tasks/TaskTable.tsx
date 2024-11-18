@@ -285,40 +285,39 @@ export function TaskTable({
   const getSortedTasks = () => {
     if (!sortBy || sortBy === "none") return tasks;
 
-    return [...tasks]
-      .sort((a, b) => {
-        const aRating = taskRatings[a.id] || {
-          clientSatisfaction: 0,
-          effort: 0,
-          clientWeight: 0,
-        };
-        const bRating = taskRatings[b.id] || {
-          clientSatisfaction: 0,
-          effort: 0,
-          clientWeight: 0,
-        };
+    return [...tasks].sort((a, b) => {
+      const aRating = taskRatings[a.id] || {
+        clientSatisfaction: 0,
+        effort: 0,
+        clientWeight: 0,
+      };
+      const bRating = taskRatings[b.id] || {
+        clientSatisfaction: 0,
+        effort: 0,
+        clientWeight: 0,
+      };
 
-        let aValue = 0;
-        let bValue = 0;
+      let aValue = 0;
+      let bValue = 0;
 
-        switch (sortBy) {
-          case "satisfaction":
-            aValue = aRating.clientSatisfaction;
-            bValue = bRating.clientSatisfaction;
-            break;
-          case "effort":
-            aValue = aRating.effort;
-            bValue = bRating.effort;
-            break;
-          case "weight":
-            aValue = aRating.clientWeight;
-            bValue = bRating.clientWeight;
-            break;
-        }
+      switch (sortBy) {
+        case "satisfaction":
+          aValue = aRating.clientSatisfaction;
+          bValue = bRating.clientSatisfaction;
+          break;
+        case "effort":
+          aValue = aRating.effort;
+          bValue = bRating.effort;
+          break;
+        case "weight":
+          aValue = aRating.clientWeight;
+          bValue = bRating.clientWeight;
+          break;
+      }
 
-        return sortOrder === "asc" ? aValue - bValue : bValue - aValue;
-      })
-      .slice(0, 3); // Solo retorna los primeros 3 elementos cuando hay ordenamiento activo
+      return sortOrder === "asc" ? aValue - bValue : bValue - aValue;
+    });
+    // Solo retorna los primeros 3 elementos cuando hay ordenamiento activo
   };
 
   const handleSort = (type: "satisfaction" | "effort" | "weight") => {

@@ -6,8 +6,8 @@ import { authOptions } from "@/lib/authOptions";
 
 const updateTaskSchema = z.object({
   organizationId: z.string(),
-  effort: z.number().min(0).max(5).int().optional(),
-  clientWeight: z.number().min(0).max(5).int().optional(),
+  effort: z.number().min(0).int().optional(),
+  clientWeight: z.number().min(0).int().optional(),
 });
 
 export async function PATCH(
@@ -142,8 +142,6 @@ export async function PATCH(
           );
         }
       }
-
-      newSatisfaction = Math.min(5, Math.max(0, newSatisfaction));
 
       updatedRating = await prisma.taskRating.upsert({
         where: {
