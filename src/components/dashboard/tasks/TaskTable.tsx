@@ -348,7 +348,6 @@ export function TaskTable({
 
   return (
     <div className="w-full space-y-4 mt-10 relative">
-
       {session?.user?.isAdmin && (
         <div className="flex mb-4 justify-between mr-4 ">
           <DropdownMenu>
@@ -377,7 +376,10 @@ export function TaskTable({
             </DropdownMenuContent>
           </DropdownMenu>
           <div className="flex space-x-3 items-center">
-            <label htmlFor="effort-input" className="block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="effort-input"
+              className="block text-sm font-medium text-gray-700"
+            >
               Esfuerzo:
             </label>
             <input
@@ -390,7 +392,6 @@ export function TaskTable({
               placeholder="Introduce un valor"
             />
           </div>
-
         </div>
       )}
       <div className="border rounded-lg overflow-x-auto overscroll-x-contain touch-pan-x scrollbar-thin scrollbar-thumb-gray-300">
@@ -521,9 +522,9 @@ export function TaskTable({
                   setEditingTask(
                     editingTask
                       ? {
-                        ...editingTask,
-                        name: e.target.value,
-                      }
+                          ...editingTask,
+                          name: e.target.value,
+                        }
                       : null,
                   )
                 }
@@ -542,9 +543,9 @@ export function TaskTable({
                   setEditingTask(
                     editingTask
                       ? {
-                        ...editingTask,
-                        description: e.target.value,
-                      }
+                          ...editingTask,
+                          description: e.target.value,
+                        }
                       : null,
                   )
                 }
@@ -625,12 +626,12 @@ export function TaskTable({
                   setEditingTask(
                     editingTask
                       ? {
-                        ...editingTask,
-                        progress: Math.min(
-                          100,
-                          Math.max(0, Number(e.target.value)),
-                        ),
-                      }
+                          ...editingTask,
+                          progress: Math.min(
+                            100,
+                            Math.max(0, Number(e.target.value)),
+                          ),
+                        }
                       : null,
                   )
                 }
@@ -666,18 +667,17 @@ export function TaskTable({
                 type="number"
                 id="peso"
                 value={editingTask?.weight || 0}
-
                 min={0}
                 onChange={(e) =>
                   setEditingTask(
                     editingTask
                       ? {
-                        ...editingTask,
-                        weight: Math.min(
-                          5,
-                          Math.max(0, Number(e.target.value)),
-                        ),
-                      }
+                          ...editingTask,
+                          weight: Math.min(
+                            5,
+                            Math.max(0, Number(e.target.value)),
+                          ),
+                        }
                       : null,
                   )
                 }
@@ -692,18 +692,17 @@ export function TaskTable({
                 type="number"
                 id="esfuerzo"
                 value={editingTask?.effort || 0}
-
                 min={0}
                 onChange={(e) =>
                   setEditingTask(
                     editingTask
                       ? {
-                        ...editingTask,
-                        effort: Math.min(
-                          5,
-                          Math.max(0, Number(e.target.value)),
-                        ),
-                      }
+                          ...editingTask,
+                          effort: Math.min(
+                            5,
+                            Math.max(0, Number(e.target.value)),
+                          ),
+                        }
                       : null,
                   )
                 }
