@@ -234,7 +234,7 @@ describe("PATCH task rating endpoint", () => {
 
     expect(response.status).toBe(500);
     const data = await response.json();
-    expect(data.error).toBe("Invalid input data");
-    expect(data.details).toBeDefined();
+    expect(data.error).toBe("Internal server error");
+    expect(data.details).toBeUndefined();
   });
 });
