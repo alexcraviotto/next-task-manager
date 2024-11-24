@@ -20,6 +20,14 @@ export default function CreateOrganization({
   const [orgName, setOrgName] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [effortLimit, setEffortLimit] = useState<number | ''>('');
+
+  const handleEffortLimitChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (/^\d*$/.test(value) && parseInt(value, 10) >= 0) {
+      setEffortLimit(value === '' ? '' : parseInt(value, 10));
+    }
+  };
 
   const handleCreateOrganization = async (
     e: React.FormEvent<HTMLFormElement>,
@@ -37,7 +45,7 @@ export default function CreateOrganization({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ name: orgName }),
+        body: JSON.stringify({ name: orgName, effortLimit }),
       });
 
       const data = await response.json();
@@ -45,6 +53,7 @@ export default function CreateOrganization({
       if (response.ok) {
         onSuccess(data.organization);
         setOrgName("");
+        setEffortLimit('');
       } else {
         setErrorMessage(data.message || "Error al crear la organización");
       }
@@ -79,6 +88,19 @@ export default function CreateOrganization({
               placeholder="Introduzca el nombre de la organización"
               value={orgName}
               onChange={(e) => setOrgName(e.target.value)}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-black"
+              disabled={isLoading}
+            />
+          </div>
+          <div className="mb-4">
+            <label htmlFor="effortLimit" className="block text-sm font-semibold mb-2 text-gray-700">
+              Esfuerzo Límite:
+            </label>
+            <input
+              type="text"
+              id="effortLimit"
+              value={effortLimit}
+              onChange={handleEffortLimitChange}
               className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-black"
               disabled={isLoading}
             />

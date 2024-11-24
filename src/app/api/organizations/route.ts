@@ -12,10 +12,10 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { name, weight }: { name: string; weight?: number } =
+    const { name, weight, effortLimit }: { name: string; weight?: number, effortLimit: number } =
       await req.json();
 
-    // Validate weight first
+
     if (weight !== undefined && (weight < 0 || weight > 5)) {
       return NextResponse.json(
         { message: "Weight must be between 0 and 5" },
@@ -47,13 +47,14 @@ export async function POST(req: NextRequest) {
     }
 
     const newOrganization = await prisma.organization.create({
-      data: { name, createdById: existingUser.id },
+      data: { name, createdById: existingUser.id, effort_limit: effortLimit },
     });
     await prisma.userOrganization.create({
       data: {
         userId: existingUser.id,
         organizationId: newOrganization.id,
         weight: weight ?? 0,
+      
       },
     });
 
