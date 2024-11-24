@@ -41,8 +41,8 @@ export default function Dashboard({ params }: { params: { uuid: string } }) {
         transition={{ delay: 0.3, duration: 0.5 }}
       >
         <MembersTable
-          members={members}
           organizationId={organizationId}
+          members={members}
           onUpdateMember={updateMember}
           onDeleteMember={deleteMember}
           onAddMember={addMember}

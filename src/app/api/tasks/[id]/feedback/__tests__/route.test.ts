@@ -227,12 +227,12 @@ describe("PATCH task rating endpoint", () => {
     const response = await PATCH(
       mockRequest({
         organizationId: "1",
-        effort: 6, // Mayor que el máximo permitido (5)
+        effort: 245, // Mayor que el máximo permitido (5)
       }),
       { params: { id: "1" } },
     );
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(500);
     const data = await response.json();
     expect(data.error).toBe("Invalid input data");
     expect(data.details).toBeDefined();

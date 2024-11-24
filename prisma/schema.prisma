@@ -35,6 +35,7 @@ model Organization {
   createdById Int
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
+  effort_limit      Int                @default(0)
   users     UserOrganization[] @relation("OrganizationToUserOrganization")
   tasks     Task[]            @relation("OrganizationToTask")
   versions  Version[]         @relation("OrganizationToVersion")

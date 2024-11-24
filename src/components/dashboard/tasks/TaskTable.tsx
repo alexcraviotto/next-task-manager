@@ -75,6 +75,7 @@ export function TaskTable({
   const [error, setError] = useState<string | null>(null);
   const { data: session } = useSession();
   const { toast } = useToast();
+  const [effortFilter, setEffortFilter] = useState(0);
 
   // TaskRating
   const [taskRatings, setTaskRatings] = useState<{
@@ -234,7 +235,12 @@ export function TaskTable({
       });
     }
   };
-
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = Number(e.target.value);
+    if (!isNaN(value)) {
+      setEffortFilter(value);
+    }
+  };
   // Modificar el manejo de cambio de fechas
   const handleDateChange = (field: "startDate" | "endDate", value: string) => {
     if (!editingTask) return;
@@ -283,42 +289,52 @@ export function TaskTable({
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   const getSortedTasks = () => {
-    if (!sortBy || sortBy === "none") return tasks;
+    // Filtrar las tareas según el esfuerzo
+    const filteredTasks = tasks.filter((task) => {
+      const taskEffort = taskRatings[task.id]?.effort ?? 0;
+      return taskEffort <= effortFilter;
+    });
 
-    return [...tasks]
-      .sort((a, b) => {
-        const aRating = taskRatings[a.id] || {
-          clientSatisfaction: 0,
-          effort: 0,
-          clientWeight: 0,
-        };
-        const bRating = taskRatings[b.id] || {
-          clientSatisfaction: 0,
-          effort: 0,
-          clientWeight: 0,
-        };
+    // Si no hay criterio de ordenación, devolvemos las tareas filtradas
+    if (!sortBy || sortBy === "none") return filteredTasks;
 
-        let aValue = 0;
-        let bValue = 0;
+    // Ordenar las tareas filtradas
+    return [...filteredTasks].sort((a, b) => {
+      const aRating = taskRatings[a.id] || {
+        clientSatisfaction: 0,
+        effort: 0,
+        clientWeight: 0,
+      };
+      const bRating = taskRatings[b.id] || {
+        clientSatisfaction: 0,
+        effort: 0,
+        clientWeight: 0,
+      };
 
-        switch (sortBy) {
-          case "satisfaction":
-            aValue = aRating.clientSatisfaction;
-            bValue = bRating.clientSatisfaction;
-            break;
-          case "effort":
-            aValue = aRating.effort;
-            bValue = bRating.effort;
-            break;
-          case "weight":
-            aValue = aRating.clientWeight;
-            bValue = bRating.clientWeight;
-            break;
-        }
+      let aValue = 0;
+      let bValue = 0;
 
-        return sortOrder === "asc" ? aValue - bValue : bValue - aValue;
-      })
-      .slice(0, 3); // Solo retorna los primeros 3 elementos cuando hay ordenamiento activo
+      // Seleccionar el valor a ordenar según el criterio
+      switch (sortBy) {
+        case "satisfaction":
+          aValue = aRating.clientSatisfaction;
+          bValue = bRating.clientSatisfaction;
+          break;
+        case "effort":
+          aValue = aRating.effort;
+          bValue = bRating.effort;
+          break;
+        case "weight":
+          aValue = aRating.clientWeight;
+          bValue = bRating.clientWeight;
+          break;
+      }
+
+      // Orden ascendente o descendente
+      return sortOrder === "asc" ? aValue - bValue : bValue - aValue;
+    });
+
+    // Solo retorna los primeros 3 elementos cuando hay ordenamiento activo
   };
 
   const handleSort = (type: "satisfaction" | "effort" | "weight") => {
@@ -333,7 +349,7 @@ export function TaskTable({
   return (
     <div className="w-full space-y-4 mt-10 relative">
       {session?.user?.isAdmin && (
-        <div className="flex mb-4">
+        <div className="flex mb-4 justify-between mr-4 ">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="gap-2">
@@ -359,6 +375,23 @@ export function TaskTable({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          <div className="flex space-x-3 items-center">
+            <label
+              htmlFor="effort-input"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Esfuerzo:
+            </label>
+            <input
+              id="effort-input"
+              type="number"
+              value={effortFilter}
+              onChange={handleInputChange}
+              min={0}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+              placeholder="Introduce un valor"
+            />
+          </div>
         </div>
       )}
       <div className="border rounded-lg overflow-x-auto overscroll-x-contain touch-pan-x scrollbar-thin scrollbar-thumb-gray-300">
@@ -634,7 +667,6 @@ export function TaskTable({
                 type="number"
                 id="peso"
                 value={editingTask?.weight || 0}
-                max={5}
                 min={0}
                 onChange={(e) =>
                   setEditingTask(
@@ -660,7 +692,6 @@ export function TaskTable({
                 type="number"
                 id="esfuerzo"
                 value={editingTask?.effort || 0}
-                max={5}
                 min={0}
                 onChange={(e) =>
                   setEditingTask(
