@@ -178,59 +178,25 @@ describe("Task Modify Flow", () => {
       </SessionProvider>,
     );
 
-    // Simular modificación de tarea
-    const modifyTaskModal = render(
-      <SessionProvider
-        session={{
-          user: {
-            id: "user123",
-            username: "TestUser",
-            isAdmin: false,
-            name: "Test User",
-          },
-          expires: new Date().toISOString(), // Agregar expires con la fecha actual en formato ISO
-        }}
-      >
-        <TaskTable
-          projectId="project123"
-          tasks={[
-            {
-              id: 123,
-              name: "Task 123",
-              description: "Sample task",
-              type: "Type A",
-              startDate: "",
-              endDate: "",
-              progress: 50,
-              weight: 5,
-              effort: 20,
-              dependencies: 0,
-              organizationId: "org1",
-              createdAt: "",
-            },
-          ]}
-          onUpdateTask={onUpdateTask}
-          onDeleteTask={onDeleteTask}
-          onAddTask={onAddTask}
-        />
-      </SessionProvider>,
-    );
+    // Simular clic en el botón de editar tarea
+    const editButton = screen.getByRole("button", { name: /editar tarea/i });
+    await userEvent.click(editButton);
 
-    // Rellenar formulario de modificación
-
-    const weightInput = modifyTaskModal.getByLabelText("Valoracion");
-    const effortInput = modifyTaskModal.getByLabelText("Esfuerzo");
-    const submitButton = modifyTaskModal.getByRole("button", {
-      name: /Modificar tarea/i,
+    // Esperar que los campos de modificación aparezcan
+    const weightInput = screen.getByLabelText("Peso");
+    const effortInput = screen.getByLabelText("Esfuerzo");
+    const submitButton = screen.getByRole("button", {
+      name: /Guardar Cambios/i,
     });
 
+    // Interactuar con los campos de formulario
     await userEvent.clear(weightInput);
     await userEvent.type(weightInput, "10");
     await userEvent.clear(effortInput);
     await userEvent.type(effortInput, "25");
     await userEvent.click(submitButton);
 
-    // Volver a renderizar la página de tarea
+    // Volver a renderizar la página con los datos modificados
     rerender(
       <SessionProvider
         session={{
@@ -270,12 +236,14 @@ describe("Task Modify Flow", () => {
 
     // Verificar que la tarea muestra los nuevos valores de peso y esfuerzo
     await waitFor(() => {
-      const weightElement = screen.getByText("Peso: 10");
-      const effortElement = screen.getByText("Esfuerzo: 25");
+      const weightCell = screen.getByText("5"); // Asegúrate de que el texto original (5) es único y accesible
+      const effortCell = screen.getByText("20"); // Lo mismo para el valor de esfuerzo (20)
+
+      // Verificar que los valores en las celdas han cambiado
       // @ts-ignore
-      expect(weightElement).toBeInTheDocument();
+      expect(weightCell).toHaveTextContent("10"); // Verificar que el valor de peso es 10 después de la modificación
       // @ts-ignore
-      expect(effortElement).toBeInTheDocument();
+      expect(effortCell).toHaveTextContent("25"); // Verificar que el valor de esfuerzo es 25 después de la modificación
     });
 
     // Verificar que se puede navegar a la página de tarea después de la modificación
