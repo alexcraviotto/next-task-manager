@@ -6,7 +6,7 @@ import { TasksSkeleton } from "@/components/dashboard/tasks/TasksSkeleton";
 import { TaskTable } from "@/components/dashboard/tasks/TaskTable";
 import { useTasks } from "@/hooks/useTasks";
 
-export default function Dashboard({ params }: { params: { uuid: string } }) {
+export default function TasksPage({ params }: { params: { uuid: string } }) {
   const { uuid } = params;
   const { tasks, isLoading, addTask, updateTask, deleteTask } = useTasks(uuid);
 
