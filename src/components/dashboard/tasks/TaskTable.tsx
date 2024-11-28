@@ -497,7 +497,7 @@ export function TaskTable({
       {session?.user?.isAdmin && (
         <Button variant="default" className="gap-2" onClick={handleAddTask}>
           <Plus className="h-4 w-4" />
-          Agregar Tarea
+          Añadir Tarea
         </Button>
       )}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
