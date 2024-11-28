@@ -20,12 +20,12 @@ export default function CreateOrganization({
   const [orgName, setOrgName] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [effortLimit, setEffortLimit] = useState<number | ''>('');
+  const [effortLimit, setEffortLimit] = useState<number | "">("");
 
   const handleEffortLimitChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     if (/^\d*$/.test(value) && parseInt(value, 10) >= 0) {
-      setEffortLimit(value === '' ? '' : parseInt(value, 10));
+      setEffortLimit(value === "" ? "" : parseInt(value, 10));
     }
   };
 
@@ -53,7 +53,7 @@ export default function CreateOrganization({
       if (response.ok) {
         onSuccess(data.organization);
         setOrgName("");
-        setEffortLimit('');
+        setEffortLimit("");
       } else {
         setErrorMessage(data.message || "Error al crear la organización");
       }
@@ -93,7 +93,10 @@ export default function CreateOrganization({
             />
           </div>
           <div className="mb-4">
-            <label htmlFor="effortLimit" className="block text-sm font-semibold mb-2 text-gray-700">
+            <label
+              htmlFor="effortLimit"
+              className="block text-sm font-semibold mb-2 text-gray-700"
+            >
               Esfuerzo Límite:
             </label>
             <input

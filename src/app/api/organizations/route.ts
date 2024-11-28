@@ -12,9 +12,12 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { name, weight, effortLimit }: { name: string; weight?: number, effortLimit: number } =
+    const {
+      name,
+      weight,
+      effortLimit,
+    }: { name: string; weight?: number; effortLimit: number } =
       await req.json();
-
 
     if (weight !== undefined && (weight < 0 || weight > 5)) {
       return NextResponse.json(
@@ -54,7 +57,6 @@ export async function POST(req: NextRequest) {
         userId: existingUser.id,
         organizationId: newOrganization.id,
         weight: weight ?? 0,
-      
       },
     });
 
