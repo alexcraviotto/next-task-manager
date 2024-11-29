@@ -184,6 +184,7 @@ export function AppSidebar({ projectId }: { projectId: string | undefined }) {
                           <Trash2
                             size={16}
                             className="text-destructive hover:text-destructive/90"
+                            data-testid="delete-org-button"
                           />
                         </button>
                       )}

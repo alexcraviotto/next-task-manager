@@ -12,7 +12,8 @@
     "format:fix": "prettier --write --list-different .",
     "prepare": "husky",
     "test": "prisma generate && jest",
-    "integration-test": "prisma generate && vitest"
+    "integration-test": "prisma generate && vitest",
+    "deploy-verify": "node scripts/deploy-verify.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",

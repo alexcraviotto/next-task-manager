@@ -1,0 +1,3 @@
+src/components/ConfirmEmail.tsx
+src/components/__tests__/app-sidebar.test.tsx
+src/deploy-verifier.js
