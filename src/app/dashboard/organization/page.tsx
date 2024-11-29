@@ -10,7 +10,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 export default function OrganizationsPage() {
   const [showJoinOrg, setShowJoinOrg] = useState(false);
-  const { data } = useSession();
+  const { update, data: session } = useSession();
   const { organizations, loading, error } = useOrganizations();
   const [inviteCode, setInviteCode] = useState("");
   const router = useRouter();
@@ -41,8 +41,11 @@ export default function OrganizationsPage() {
         throw new Error(data.message || "Error al unirse a la organización");
       }
 
+      // Forzar actualización de la sesión
+      await update();
+
       toast({ description: "Te has unido a la organización correctamente" });
-      router.push(`/dashboard/organization/${data.organization.id}`);
+      router.push(`/dashboard/organization/${data.organization.id}/tasks`);
     } catch (error) {
       setJoinError(
         error instanceof Error
@@ -72,6 +75,7 @@ export default function OrganizationsPage() {
       </div>
     );
   }
+  console.log("🚀 ~ OrganizationsPage ~ data?.user:", session?.user);
 
   return (
     <motion.div
@@ -113,7 +117,7 @@ export default function OrganizationsPage() {
                       <span role="img" aria-label="waving hand">
                         👋
                       </span>
-                      Hola, {data?.user?.username ?? "Sin nombre"}.
+                      Hola, {session?.user?.name ?? "Sin nombre"}.
                     </h1>
                     <p className="text-gray-600 mt-2">
                       Estas son tus organizaciones.

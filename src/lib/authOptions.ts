@@ -33,6 +33,16 @@ export const authOptions: AuthOptions = {
         if (!isValidPassword) {
           throw new Error("Invalid password");
         }
+        const userWithOrgs = await prisma.user.findUnique({
+          where: { email: user?.email },
+          include: {
+            organizations: {
+              select: {
+                organizationId: true,
+              },
+            },
+          },
+        });
 
         return {
           id: user.id.toString(),
@@ -43,17 +53,57 @@ export const authOptions: AuthOptions = {
           createdAt: user.createdAt,
           updatedAt: user.updatedAt,
           isVerified: user.isVerified,
+          organizations:
+            userWithOrgs?.organizations.map((org) => ({
+              id: org.organizationId,
+            })) || [],
         };
       },
     }),
   ],
   session: { strategy: "jwt" },
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
+      if (trigger === "update") {
+        const userWithOrgs = await prisma.user.findUnique({
+          where: { email: token.email! },
+          include: {
+            organizations: {
+              select: {
+                organizationId: true,
+              },
+            },
+          },
+        });
+
+        token.organizations =
+          userWithOrgs?.organizations.map((org) => ({
+            id: org.organizationId,
+          })) || [];
+        console.log("🚀 ~ jwt ~ token.organizations:", token.organizations);
+      }
       if (user) {
         token.isAdmin = user.isAdmin;
         token.isVerified = user.isVerified;
+
+        // Añadir organizaciones al token
+        const userWithOrgs = await prisma.user.findUnique({
+          where: { email: user.email! },
+          include: {
+            organizations: {
+              select: {
+                organizationId: true,
+              },
+            },
+          },
+        });
+
+        token.organizations =
+          userWithOrgs?.organizations.map((org) => ({
+            id: org.organizationId,
+          })) || [];
       }
+      console.log("TOKEN: " + JSON.stringify(token, null, 2));
       return token;
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -61,6 +111,20 @@ export const authOptions: AuthOptions = {
       const user = await prisma.user.findUnique({
         where: { email: session.token.email },
       });
+      const userWithOrgs = await prisma.user.findUnique({
+        where: { email: user?.email },
+        include: {
+          organizations: {
+            select: {
+              organizationId: true,
+            },
+          },
+        },
+      });
+      session.organizations =
+        userWithOrgs?.organizations.map((org) => ({
+          id: org.organizationId,
+        })) || [];
       session.user = user;
       return session;
     },
