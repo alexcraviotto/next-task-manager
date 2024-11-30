@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { signOut, useSession } from "next-auth/react";
@@ -7,19 +7,31 @@ import { useOrganizations } from "@/hooks/use-organizations";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
+import CreateOrganization from "@/components/dashboard/organization/createOrganization";
 
 export default function OrganizationsPage() {
   const [showJoinOrg, setShowJoinOrg] = useState(false);
   const { update, data: session } = useSession();
-  const { organizations, loading, error } = useOrganizations();
+  const { organizations, loading, error, mutate } = useOrganizations();
   const [inviteCode, setInviteCode] = useState("");
   const router = useRouter();
   const [isJoining, setIsJoining] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
+  const [showCreateOrg, setShowCreateOrg] = useState(false);
+  const [newOrgCreated, setNewOrgCreated] = useState(false);
   const { toast } = useToast();
 
   const handleShowJoinOrg = () => setShowJoinOrg(true);
   const handleDecline = () => setShowJoinOrg(false);
+
+  const handleCreateOrg = () => {
+    setShowCreateOrg(true);
+  };
+  useEffect(() => {
+    if (newOrgCreated) {
+      mutate();
+    }
+  }, [newOrgCreated, mutate]);
 
   const handleJoin = async () => {
     if (!inviteCode.trim()) {
@@ -209,6 +221,26 @@ export default function OrganizationsPage() {
                     </Button>
                   </div>
                 </div>
+              )}
+              <Button
+                variant="secondary"
+                onClick={handleCreateOrg}
+                className="w-full bg-black/50 text-white rounded-lg mt-4 hover:bg-black/70"
+              >
+                Crear organización
+              </Button>
+              {showCreateOrg && (
+                <CreateOrganization
+                  isOpen={showCreateOrg}
+                  onClose={() => setShowCreateOrg(false)}
+                  onSuccess={() => {
+                    setShowCreateOrg(false);
+                    setNewOrgCreated(true);
+                    toast({
+                      description: "Organización creada correctamente",
+                    });
+                  }}
+                />
               )}
             </motion.div>
           </AnimatePresence>
