@@ -18,14 +18,6 @@ export async function POST(req: NextRequest) {
       effortLimit,
     }: { name: string; weight?: number; effortLimit: number } =
       await req.json();
-
-    if (weight !== undefined && (weight < 0 || weight > 5)) {
-      return NextResponse.json(
-        { message: "Weight must be between 0 and 5" },
-        { status: 400 },
-      );
-    }
-
     if (!name) {
       return NextResponse.json(
         { message: "Name is required" },

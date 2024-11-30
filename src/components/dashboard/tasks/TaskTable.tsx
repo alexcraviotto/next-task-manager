@@ -27,15 +27,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Task } from "@/lib/types";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { ArrowUpDown } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useToast } from "@/hooks/use-toast";
+import { calculations } from "@/lib/calculations";
 
 interface TaskTableProps {
   projectId: string;
@@ -76,6 +70,7 @@ export function TaskTable({
   const { data: session } = useSession();
   const { toast } = useToast();
   const [effortFilter, setEffortFilter] = useState(0);
+  const [effortLimit, setEffortLimit] = useState(0);
 
   // TaskRating
   const [taskRatings, setTaskRatings] = useState<{
@@ -99,7 +94,11 @@ export function TaskTable({
       console.error("Error loading task ratings:", error);
     }
   };
-
+  useEffect(() => {
+    fetch(`/api/organizations/${projectId}`)
+      .then((res) => res.json())
+      .then((data) => setEffortLimit(data.effortLimit));
+  }, []);
   // Modifica el useEffect para cargar los ratings iniciales
   useEffect(() => {
     tasks.forEach((task) => {
@@ -109,25 +108,39 @@ export function TaskTable({
 
   //
   const handleAddTask = () => {
-    const today = new Date().toISOString();
-    const newTask: Omit<Task, "id" | "createdAt"> = {
+    const today = new Date();
+    const startDate = today.toISOString();
+    const endDate = new Date(today.setDate(today.getDate() + 1)).toISOString();
+    const newTask: Omit<Task, "id"> = {
       name: "",
       description: "",
       type: "task",
-      startDate: today,
-      endDate: today,
+      startDate: startDate,
+      endDate: endDate,
       progress: 0,
       dependencies: 0,
       weight: 0,
       organizationId: projectId,
       effort: 0,
+      createdAt: startDate,
     };
     setEditingTask(newTask as Task);
     setIsDialogOpen(true);
   };
 
+  // Añadir un estado para mantener los valores editados
+  const [editedValues, setEditedValues] = useState<{
+    weight?: number;
+    effort?: number;
+  }>({});
+
   const handleEditTask = (task: Task) => {
     setEditingTask(task);
+    // Resetear los valores editados cuando se abre el diálogo
+    setEditedValues({
+      weight: taskRatings[task.id]?.clientWeight ?? 0,
+      effort: taskRatings[task.id]?.effort ?? 0,
+    });
     setIsDialogOpen(true);
   };
 
@@ -171,10 +184,11 @@ export function TaskTable({
     return end >= start;
   };
 
+  // Modificar la validación en handleSaveTask
   const handleSaveTask = async () => {
     if (!editingTask) return;
 
-    // Validar fechas antes de guardar
+    // Validar fechas
     if (!validateDates(editingTask.startDate, editingTask.endDate)) {
       setError(
         "La fecha de fin debe ser posterior o igual a la fecha de inicio",
@@ -188,24 +202,37 @@ export function TaskTable({
       return;
     }
 
+    // Validar peso y esfuerzo
+    if (
+      editingTask.weight < 0 ||
+      editingTask.weight > 5 ||
+      editingTask.effort < 0 ||
+      editingTask.effort > 5
+    ) {
+      setError("El peso y el esfuerzo deben estar entre 0 y 5");
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "El peso y el esfuerzo deben estar entre 0 y 5",
+      });
+      return;
+    }
+
     try {
-      let updatedTask;
+      let updatedTask: Task;
       if ("id" in editingTask) {
         updatedTask = await onUpdateTask(editingTask.id, editingTask);
 
         // Crear objeto de actualización con valores seguros
         const updateData = {
           organizationId: projectId,
-          effort: editingTask.effort ?? 0,
-          clientWeight: editingTask.weight ?? 0, // Usar 0 si weight es undefined
+          effort: editedValues.effort ?? 0,
+          clientWeight: editedValues.weight ?? 0, // Usar 0 si weight es undefined
         };
 
         console.log("Valores a enviar:", updateData);
 
         await updateTaskRating(editingTask.id, updateData);
-
-        // Recargar los ratings después de actualizar
-        await loadTaskRatings(editingTask.id);
 
         toast({
           title: "Tarea actualizada",
@@ -213,7 +240,20 @@ export function TaskTable({
         });
       } else {
         // Si es una nueva tarea
-        updatedTask = await onAddTask(editingTask);
+
+        updatedTask = await onAddTask(editingTask as Omit<Task, "id">);
+        console.log(
+          "🚀 ~ handleSaveTask ~ updatedTask:",
+          JSON.stringify(updatedTask),
+        );
+
+        const updateData = {
+          organizationId: projectId,
+          effort: editedValues.effort ?? 0,
+          clientWeight: editedValues.weight ?? 0, // Usar 0 si weight es undefined
+        };
+        await updateTaskRating(updatedTask.id, updateData);
+
         console.log("Tarea agregada:", updatedTask);
         toast({
           title: "Tarea creada",
@@ -283,98 +323,42 @@ export function TaskTable({
     }
   };
 
-  const [sortBy, setSortBy] = useState<
-    "satisfaction" | "effort" | "weight" | "none" | null
-  >("none");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  // Añadir nuevo estado para controlar la visibilidad de la solución
+  const [showSolution, setShowSolution] = useState(false);
 
-  const getSortedTasks = () => {
-    // Filtrar las tareas según el esfuerzo
-    const filteredTasks = tasks.filter((task) => {
-      const taskEffort = taskRatings[task.id]?.effort ?? 0;
-      return taskEffort <= effortFilter;
-    });
+  // Añadir estado para métricas
+  const [metrics, setMetrics] = useState<{
+    totalSatisfaction: number;
+    totalEffort: number;
+    totalProductivity: number;
+    coverage: number;
+  }>({
+    totalSatisfaction: 0,
+    totalEffort: 0,
+    totalProductivity: 0,
+    coverage: 0,
+  });
 
-    // Si no hay criterio de ordenación, devolvemos las tareas filtradas
-    if (!sortBy || sortBy === "none") return filteredTasks;
-
-    // Ordenar las tareas filtradas
-    return [...filteredTasks].sort((a, b) => {
-      const aRating = taskRatings[a.id] || {
+  // Calcular métricas cuando cambien las tareas o los ratings
+  useEffect(() => {
+    const tasksWithRatings = tasks.map((task) => ({
+      id: task.id,
+      name: task.name,
+      ratings: taskRatings[task.id] || {
         clientSatisfaction: 0,
-        effort: 0,
         clientWeight: 0,
-      };
-      const bRating = taskRatings[b.id] || {
-        clientSatisfaction: 0,
         effort: 0,
-        clientWeight: 0,
-      };
+      },
+    }));
 
-      let aValue = 0;
-      let bValue = 0;
-
-      // Seleccionar el valor a ordenar según el criterio
-      switch (sortBy) {
-        case "satisfaction":
-          aValue = aRating.clientSatisfaction;
-          bValue = bRating.clientSatisfaction;
-          break;
-        case "effort":
-          aValue = aRating.effort;
-          bValue = bRating.effort;
-          break;
-        case "weight":
-          aValue = aRating.clientWeight;
-          bValue = bRating.clientWeight;
-          break;
-      }
-
-      // Orden ascendente o descendente
-      return sortOrder === "asc" ? aValue - bValue : bValue - aValue;
-    });
-
-    // Solo retorna los primeros 3 elementos cuando hay ordenamiento activo
-  };
-
-  const handleSort = (type: "satisfaction" | "effort" | "weight") => {
-    if (sortBy === type) {
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-    } else {
-      setSortBy(type);
-      setSortOrder("desc");
-    }
-  };
+    const newMetrics = calculations.calculateGlobalMetrics(tasksWithRatings);
+    setMetrics(newMetrics);
+  }, [tasks, taskRatings]);
 
   return (
     <div className="w-full space-y-4 mt-10 relative">
       {session?.user?.isAdmin && (
         <div className="flex mb-4 justify-between mr-4 ">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="gap-2">
-                <ArrowUpDown className="h-4 w-4" />
-                Ordenar por
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem onClick={() => setSortBy("none")}>
-                Mostrar todos {sortBy === "none" && "✓"}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleSort("satisfaction")}>
-                Satisfacción{" "}
-                {sortBy === "satisfaction" && (sortOrder === "asc" ? "↑" : "↓")}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleSort("effort")}>
-                Esfuerzo{" "}
-                {sortBy === "effort" && (sortOrder === "asc" ? "↑" : "↓")}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleSort("weight")}>
-                Valoración{" "}
-                {sortBy === "weight" && (sortOrder === "asc" ? "↑" : "↓")}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
           <div className="flex space-x-3 items-center">
             <label
               htmlFor="effort-input"
@@ -435,7 +419,7 @@ export function TaskTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {getSortedTasks().map((task) => (
+            {tasks.map((task) => (
               <TableRow key={task.id} className="divide-x divide-gray-200">
                 <TableCell className="p-2 sm:p-4 text-xs sm:text-sm break-words sticky left-0 bg-white">
                   {task.name}
@@ -494,12 +478,147 @@ export function TaskTable({
         </Table>
       </div>
 
-      {session?.user?.isAdmin && (
-        <Button variant="default" className="gap-2" onClick={handleAddTask}>
-          <Plus className="h-4 w-4" />
-          Añadir Tarea
+      <div className="flex justify-between items-center mt-6">
+        {session?.user?.isAdmin && (
+          <Button variant="default" className="gap-2" onClick={handleAddTask}>
+            <Plus className="h-4 w-4" />
+            Añadir Tarea
+          </Button>
+        )}
+
+        <Button
+          variant="outline"
+          onClick={() => setShowSolution(!showSolution)}
+          className="ml-4"
+        >
+          {showSolution ? "Ocultar Solución" : "Ver Solución"}
         </Button>
+      </div>
+
+      {showSolution && (
+        <div className="mt-8 space-y-6 bg-gray-50 p-6 rounded-lg border border-gray-200">
+          <h2 className="text-2xl font-semibold mb-4">Análisis de Solución</h2>
+
+          {/* Métricas principales */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="bg-white p-4 rounded-lg shadow">
+              <h3 className="text-sm font-medium text-gray-500">
+                Productividad Total
+              </h3>
+              <p className="text-2xl font-bold text-pink-600">
+                {metrics.totalProductivity}
+              </p>
+            </div>
+            <div className="bg-white p-4 rounded-lg shadow">
+              <h3 className="text-sm font-medium text-gray-500">
+                Cobertura Cliente
+              </h3>
+              <p className="text-2xl font-bold text-pink-600">
+                {(metrics.coverage * 100).toFixed(0)}%
+              </p>
+            </div>
+            <div className="bg-white p-4 rounded-lg shadow">
+              <h3 className="text-sm font-medium text-gray-500">
+                Esfuerzo Total
+              </h3>
+              <p className="text-2xl font-bold text-pink-600">
+                {metrics.totalEffort}/{effortLimit}
+              </p>
+            </div>
+          </div>
+
+          {/* Tabla de Análisis Detallado */}
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Requisito</TableHead>
+                  <TableHead>Productividad</TableHead>
+                  <TableHead>Contribución</TableHead>
+                  <TableHead>Cobertura</TableHead>
+                  <TableHead>Prioridad</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {tasks
+                  .map((task) => ({
+                    task,
+                    rating: taskRatings[task.id] || {
+                      clientSatisfaction: 0,
+                      clientWeight: 0,
+                      effort: 0,
+                    },
+                  }))
+                  .sort(
+                    (a, b) =>
+                      b.rating.clientSatisfaction - a.rating.clientSatisfaction,
+                  )
+                  .map(({ task, rating }) => {
+                    const productivity = calculations.calculateProductivity(
+                      rating.clientSatisfaction,
+                      rating.effort,
+                    );
+
+                    const contribution = calculations.calculateContribution(
+                      rating.clientSatisfaction,
+                      metrics.totalSatisfaction,
+                    );
+
+                    return (
+                      <TableRow key={`solution-${task.id}`}>
+                        <TableCell className="font-medium">
+                          {task.name}
+                          <span className="ml-2 text-xs text-gray-500">
+                            (Satisfacción: {rating.clientSatisfaction})
+                          </span>
+                        </TableCell>
+                        <TableCell>{productivity}</TableCell>
+                        <TableCell>{contribution}</TableCell>
+                        <TableCell>
+                          {calculations.calculateCoverage(
+                            rating.clientSatisfaction,
+                            rating.clientWeight * 5,
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              productivity > 1
+                                ? "bg-green-100 text-green-800"
+                                : "bg-yellow-100 text-yellow-800"
+                            }`}
+                          >
+                            {productivity > 1 ? "Alta" : "Media"}
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Recomendaciones */}
+          <div className="bg-white p-6 rounded-lg shadow">
+            <h3 className="text-lg font-medium mb-4">Recomendaciones</h3>
+            <ul className="space-y-2">
+              <li className="flex items-start">
+                <span className="flex-shrink-0 h-5 w-5 text-green-500">✓</span>
+                <span className="ml-2 text-sm text-gray-600">
+                  Priorizar tareas con alta productividad y baja contribución
+                </span>
+              </li>
+              <li className="flex items-start">
+                <span className="flex-shrink-0 h-5 w-5 text-yellow-500">!</span>
+                <span className="ml-2 text-sm text-gray-600">
+                  Revisar requisitos con baja cobertura
+                </span>
+              </li>
+            </ul>
+          </div>
+        </div>
       )}
+
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -666,21 +785,32 @@ export function TaskTable({
               <Input
                 type="number"
                 id="peso"
-                value={editingTask?.weight || 0}
+                value={
+                  editingTask?.id
+                    ? editedValues.weight
+                    : (editingTask?.weight ?? 0)
+                }
                 min={0}
-                onChange={(e) =>
+                max={5}
+                step={1}
+                onChange={(e) => {
+                  const value = Math.min(
+                    5,
+                    Math.max(0, Number(e.target.value)),
+                  );
+                  setEditedValues((prev) => ({
+                    ...prev,
+                    weight: value,
+                  }));
                   setEditingTask(
                     editingTask
                       ? {
                           ...editingTask,
-                          weight: Math.min(
-                            5,
-                            Math.max(0, Number(e.target.value)),
-                          ),
+                          weight: value,
                         }
                       : null,
-                  )
-                }
+                  );
+                }}
                 className="col-span-3"
               />
             </div>
@@ -691,21 +821,32 @@ export function TaskTable({
               <Input
                 type="number"
                 id="esfuerzo"
-                value={editingTask?.effort || 0}
+                value={
+                  editingTask?.id
+                    ? editedValues.effort
+                    : (editingTask?.effort ?? 0)
+                }
                 min={0}
-                onChange={(e) =>
+                max={5}
+                step={1}
+                onChange={(e) => {
+                  const value = Math.min(
+                    5,
+                    Math.max(0, Number(e.target.value)),
+                  );
+                  setEditedValues((prev) => ({
+                    ...prev,
+                    effort: value,
+                  }));
                   setEditingTask(
                     editingTask
                       ? {
                           ...editingTask,
-                          effort: Math.min(
-                            5,
-                            Math.max(0, Number(e.target.value)),
-                          ),
+                          effort: value,
                         }
                       : null,
-                  )
-                }
+                  );
+                }}
                 className="col-span-3"
               />
             </div>

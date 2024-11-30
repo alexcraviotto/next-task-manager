@@ -115,11 +115,10 @@ export async function PATCH(
         );
       }
 
-      let newSatisfaction;
+      let newSatisfaction = 0;
+      console.log("🚀 ~ newClientWeight:", newClientWeight);
 
-      if (newClientWeight === 0) {
-        newSatisfaction = 0;
-      } else {
+      if (newClientWeight !== 0) {
         if (previousRating.clientWeight === 0) {
           const organizationMembers = await prisma.userOrganization.findMany({
             where: {
@@ -135,11 +134,13 @@ export async function PATCH(
             totalScore += member.weight * newClientWeight;
           });
           newSatisfaction = totalScore;
+          console.log("🚀 ~ newSatisfaction 1:", newSatisfaction);
         } else {
           newSatisfaction = Math.round(
             (previousRating.clientSatisfaction / previousRating.clientWeight) *
               newClientWeight,
           );
+          console.log("🚀 ~ newSatisfaction 2:", newSatisfaction);
         }
       }
 

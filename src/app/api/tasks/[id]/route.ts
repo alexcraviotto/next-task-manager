@@ -17,8 +17,8 @@ export async function PUT(
   const { name, description, type, startDate, endDate, progress } =
     await req.json();
 
-  if (!name || !description || !type || !startDate || !endDate) {
-    return NextResponse.json({ error: "Invalid data" }, { status: 400 });
+  if (!name || !type || !startDate || !endDate) {
+    return NextResponse.json({ error: "Name required" }, { status: 400 });
   }
 
   if (progress < 0 || progress > 100) {

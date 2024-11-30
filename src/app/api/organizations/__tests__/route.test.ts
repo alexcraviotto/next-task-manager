@@ -116,19 +116,6 @@ describe("POST /api/organizations", () => {
       organization: { id: 1, name: "New Organization" },
     });
   });
-
-  it("should return 400 if weight is out of range", async () => {
-    (req.json as jest.Mock).mockResolvedValueOnce({
-      name: "New Organization",
-      weight: 6,
-    });
-
-    const res = await POST(req);
-    expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({
-      message: "Weight must be between 0 and 5",
-    });
-  });
 });
 
 describe("GET /api/organizations", () => {
