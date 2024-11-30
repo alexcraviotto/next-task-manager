@@ -66,7 +66,7 @@ model Task {
   createdById    Int
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-
+  deselected    Boolean     @default(false)  // Nuevo campo para orden manual
   organization   Organization @relation("OrganizationToTask", fields: [organizationId], references: [id], onDelete: Cascade)
   createdBy    User          @relation("UserTasks", fields: [createdById], references: [id])
   taskRatings  TaskRating[]

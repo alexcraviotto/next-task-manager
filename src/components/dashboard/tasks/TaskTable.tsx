@@ -30,6 +30,10 @@ import { Task } from "@/lib/types";
 import { useSession } from "next-auth/react";
 import { useToast } from "@/hooks/use-toast";
 import { calculations } from "@/lib/calculations";
+import Solution from "./Solution";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
 
 interface TaskTableProps {
   projectId: string;
@@ -80,9 +84,13 @@ export function TaskTable({
       effort: number;
     };
   }>({});
+  const [loadingRatings, setLoadingRatings] = useState<Record<number, boolean>>(
+    {},
+  );
 
   const loadTaskRatings = async (taskId: number) => {
     try {
+      setLoadingRatings((prev) => ({ ...prev, [taskId]: true }));
       const response = await fetch(`/api/tasks/${taskId}/rating`);
       if (!response.ok) throw new Error("Failed to fetch ratings");
       const data = await response.json();
@@ -92,8 +100,11 @@ export function TaskTable({
       }));
     } catch (error) {
       console.error("Error loading task ratings:", error);
+    } finally {
+      setLoadingRatings((prev) => ({ ...prev, [taskId]: false }));
     }
   };
+
   useEffect(() => {
     fetch(`/api/organizations/${projectId}`)
       .then((res) => res.json())
@@ -104,7 +115,7 @@ export function TaskTable({
     tasks.forEach((task) => {
       loadTaskRatings(task.id);
     });
-  }, [tasks]);
+  }, []);
 
   //
   const handleAddTask = () => {
@@ -168,6 +179,7 @@ export function TaskTable({
       if (!response.ok) {
         throw new Error(result.error || "Error al actualizar la valoración");
       }
+      await loadTaskRatings(taskId);
       return result;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error desconocido");
@@ -355,26 +367,69 @@ export function TaskTable({
     setMetrics(newMetrics);
   }, [tasks, taskRatings]);
 
+  const RatingCell = ({ taskId, value }: { taskId: number; value: number }) => {
+    if (loadingRatings[taskId]) {
+      return <Skeleton className="h-4 w-12" />;
+    }
+    return <span>{value}</span>;
+  };
+
+  const toggleTaskSelection = async (
+    taskId: number,
+    currentDeselected: boolean,
+  ) => {
+    try {
+      await onUpdateTask(taskId, { deselected: !currentDeselected });
+      toast({
+        title: currentDeselected ? "Tarea incluida" : "Tarea excluida",
+        description: currentDeselected
+          ? "La tarea se ha incluido en la solución"
+          : "La tarea se ha excluido de la solución",
+      });
+    } catch (error) {
+      console.error(error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No se pudo actualizar el estado de la tarea",
+      });
+    }
+  };
+
   return (
     <div className="w-full space-y-4 mt-10 relative">
       {session?.user?.isAdmin && (
-        <div className="flex mb-4 justify-between mr-4 ">
-          <div className="flex space-x-3 items-center">
-            <label
-              htmlFor="effort-input"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Esfuerzo:
-            </label>
-            <input
-              id="effort-input"
-              type="number"
-              value={effortFilter}
-              onChange={handleInputChange}
-              min={0}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
-              placeholder="Introduce un valor"
-            />
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+          <div className="flex flex-col space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-base font-medium text-gray-900">
+                Filtro de Esfuerzo
+              </h3>
+              <span className="text-sm font-medium text-gray-500">
+                {effortFilter} / {effortLimit}
+              </span>
+            </div>
+            <div className="flex items-center space-x-4">
+              <Slider
+                value={[effortFilter]}
+                onValueChange={(value) => setEffortFilter(value[0])}
+                max={effortLimit}
+                step={1}
+                className="flex-1"
+              />
+              <input
+                type="number"
+                value={effortFilter}
+                onChange={handleInputChange}
+                min={0}
+                max={effortLimit}
+                className="w-16 px-2 py-1 text-center text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+                aria-label="Valor de esfuerzo"
+              />
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              Desliza para filtrar tareas por nivel de esfuerzo máximo
+            </p>
           </div>
         </div>
       )}
@@ -413,6 +468,9 @@ export function TaskTable({
               <TableHead className="p-2 sm:p-4 text-xs sm:text-sm w-[120px]">
                 Esfuerzo
               </TableHead>
+              <TableHead className="p-2 sm:p-4 text-xs sm:text-sm w-[80px]">
+                Incluir
+              </TableHead>
               <TableHead className="p-2 sm:p-4 text-xs sm:text-sm sticky right-0 bg-white z-20 w-[100px]">
                 Acciones
               </TableHead>
@@ -444,13 +502,31 @@ export function TaskTable({
                 </TableCell>
                 */}
                 <TableCell className="p-2 sm:p-4 text-xs sm:text-sm">
-                  {taskRatings[task.id]?.clientSatisfaction ?? 0}
+                  <RatingCell
+                    taskId={task.id}
+                    value={taskRatings[task.id]?.clientSatisfaction ?? 0}
+                  />
                 </TableCell>
                 <TableCell className="p-2 sm:p-4 text-xs sm:text-sm">
-                  {taskRatings[task.id]?.clientWeight ?? 0}
+                  <RatingCell
+                    taskId={task.id}
+                    value={taskRatings[task.id]?.clientWeight ?? 0}
+                  />
                 </TableCell>
                 <TableCell className="p-2 sm:p-4 text-xs sm:text-sm">
-                  {taskRatings[task.id]?.effort ?? 0}
+                  <RatingCell
+                    taskId={task.id}
+                    value={taskRatings[task.id]?.effort ?? 0}
+                  />
+                </TableCell>
+                <TableCell className="p-2 sm:p-4 text-xs sm:text-sm">
+                  <Switch
+                    checked={!task.deselected}
+                    onCheckedChange={() =>
+                      toggleTaskSelection(task.id, task.deselected ?? false)
+                    }
+                    aria-label="Incluir tarea en solución"
+                  />
                 </TableCell>
                 <TableCell className="p-2 sm:p-4 text-xs sm:text-sm sticky right-0 bg-white">
                   <Button
@@ -496,127 +572,13 @@ export function TaskTable({
       </div>
 
       {showSolution && (
-        <div className="mt-8 space-y-6 bg-gray-50 p-6 rounded-lg border border-gray-200">
-          <h2 className="text-2xl font-semibold mb-4">Análisis de Solución</h2>
-
-          {/* Métricas principales */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div className="bg-white p-4 rounded-lg shadow">
-              <h3 className="text-sm font-medium text-gray-500">
-                Productividad Total
-              </h3>
-              <p className="text-2xl font-bold text-pink-600">
-                {metrics.totalProductivity}
-              </p>
-            </div>
-            <div className="bg-white p-4 rounded-lg shadow">
-              <h3 className="text-sm font-medium text-gray-500">
-                Cobertura Cliente
-              </h3>
-              <p className="text-2xl font-bold text-pink-600">
-                {(metrics.coverage * 100).toFixed(0)}%
-              </p>
-            </div>
-            <div className="bg-white p-4 rounded-lg shadow">
-              <h3 className="text-sm font-medium text-gray-500">
-                Esfuerzo Total
-              </h3>
-              <p className="text-2xl font-bold text-pink-600">
-                {metrics.totalEffort}/{effortLimit}
-              </p>
-            </div>
-          </div>
-
-          {/* Tabla de Análisis Detallado */}
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Requisito</TableHead>
-                  <TableHead>Productividad</TableHead>
-                  <TableHead>Contribución</TableHead>
-                  <TableHead>Cobertura</TableHead>
-                  <TableHead>Prioridad</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {tasks
-                  .map((task) => ({
-                    task,
-                    rating: taskRatings[task.id] || {
-                      clientSatisfaction: 0,
-                      clientWeight: 0,
-                      effort: 0,
-                    },
-                  }))
-                  .sort(
-                    (a, b) =>
-                      b.rating.clientSatisfaction - a.rating.clientSatisfaction,
-                  )
-                  .map(({ task, rating }) => {
-                    const productivity = calculations.calculateProductivity(
-                      rating.clientSatisfaction,
-                      rating.effort,
-                    );
-
-                    const contribution = calculations.calculateContribution(
-                      rating.clientSatisfaction,
-                      metrics.totalSatisfaction,
-                    );
-
-                    return (
-                      <TableRow key={`solution-${task.id}`}>
-                        <TableCell className="font-medium">
-                          {task.name}
-                          <span className="ml-2 text-xs text-gray-500">
-                            (Satisfacción: {rating.clientSatisfaction})
-                          </span>
-                        </TableCell>
-                        <TableCell>{productivity}</TableCell>
-                        <TableCell>{contribution}</TableCell>
-                        <TableCell>
-                          {calculations.calculateCoverage(
-                            rating.clientSatisfaction,
-                            rating.clientWeight * 5,
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              productivity > 1
-                                ? "bg-green-100 text-green-800"
-                                : "bg-yellow-100 text-yellow-800"
-                            }`}
-                          >
-                            {productivity > 1 ? "Alta" : "Media"}
-                          </span>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* Recomendaciones */}
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-lg font-medium mb-4">Recomendaciones</h3>
-            <ul className="space-y-2">
-              <li className="flex items-start">
-                <span className="flex-shrink-0 h-5 w-5 text-green-500">✓</span>
-                <span className="ml-2 text-sm text-gray-600">
-                  Priorizar tareas con alta productividad y baja contribución
-                </span>
-              </li>
-              <li className="flex items-start">
-                <span className="flex-shrink-0 h-5 w-5 text-yellow-500">!</span>
-                <span className="ml-2 text-sm text-gray-600">
-                  Revisar requisitos con baja cobertura
-                </span>
-              </li>
-            </ul>
-          </div>
-        </div>
+        <Solution
+          metrics={metrics}
+          tasks={tasks}
+          taskRatings={taskRatings}
+          effortFilter={effortFilter}
+          effortLimit={effortLimit}
+        />
       )}
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

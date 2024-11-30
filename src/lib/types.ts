@@ -73,6 +73,7 @@ export interface Task {
   organizationId: string;
   createdAt: string;
   effort: number;
+  deselected?: boolean;
 }
 export interface Member {
   id: number;
