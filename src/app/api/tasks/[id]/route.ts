@@ -14,35 +14,57 @@ export async function PUT(
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
-  const { name, description, type, startDate, endDate, progress } =
-    await req.json();
-
-  if (!name || !type || !startDate || !endDate) {
-    return NextResponse.json({ error: "Name required" }, { status: 400 });
-  }
-
-  if (progress < 0 || progress > 100) {
-    return NextResponse.json(
-      { error: "Progress must be between 0 and 100" },
-      { status: 400 },
-    );
-  }
-
   try {
     const task = await prisma.task.findUnique({ where: { id: parseInt(id) } });
     if (!task) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
 
+    const updates = await req.json();
+
+    // Validar progress primero si está presente
+    if (
+      updates.progress !== undefined &&
+      (updates.progress < 0 || updates.progress > 100)
+    ) {
+      return NextResponse.json(
+        { error: "Progress must be between 0 and 100" },
+        { status: 400 },
+      );
+    }
+
+    // Actualización especial para deselected
+    if (Object.keys(updates).length === 1 && "deselected" in updates) {
+      const updatedTask = await prisma.task.update({
+        where: { id: parseInt(id) },
+        data: { deselected: updates.deselected },
+      });
+      return NextResponse.json({ task: updatedTask }, { status: 201 });
+    }
+
+    // Validaciones para actualización completa
+    if (
+      !updates.name ||
+      !updates.type ||
+      !updates.startDate ||
+      !updates.endDate
+    ) {
+      return NextResponse.json(
+        { error: "Required fields missing (name, type, startDate, endDate)" },
+        { status: 400 },
+      );
+    }
+
     const updatedTask = await prisma.task.update({
       where: { id: parseInt(id) },
       data: {
-        name,
-        description,
-        type,
-        progress,
-        startDate: new Date(startDate),
-        endDate: new Date(endDate),
+        name: updates.name,
+        description: updates.description,
+        type: updates.type,
+        progress: updates.progress,
+        startDate: new Date(updates.startDate),
+        endDate: new Date(updates.endDate),
+        deselected: updates.deselected ?? false,
       },
     });
 
