@@ -87,7 +87,7 @@ describe("Task Routes", () => {
       expect(data.message).toBe("Unauthorized");
     });
 
-    it("should return 400 if invalid data is provided", async () => {
+    it("should return 400 if name is not provided", async () => {
       const mockSession = { user: { id: "1" } };
       (getServerSession as jest.Mock).mockResolvedValueOnce(mockSession);
 
@@ -107,7 +107,7 @@ describe("Task Routes", () => {
       const data = await response.json();
 
       expect(response.status).toBe(400);
-      expect(data.error).toBe("Invalid data");
+      expect(data.error).toBe("Name required");
     });
 
     it("should return 400 if progress is less than 0", async () => {
