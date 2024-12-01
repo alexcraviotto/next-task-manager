@@ -23,6 +23,18 @@ vi.mock("@/hooks/useTasks", () => ({
   useTasks: vi.fn(),
 }));
 
+// Agregar mock de ResizeObserver antes de las pruebas
+class ResizeObserverMock {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
+beforeAll(() => {
+  // @ts-ignore
+  global.ResizeObserver = ResizeObserverMock;
+});
+
 describe("Task Creation and Listing Flow", () => {
   const mockRouter = { push: vi.fn() };
 

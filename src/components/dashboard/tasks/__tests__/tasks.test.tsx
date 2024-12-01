@@ -23,6 +23,25 @@ vi.mock("@/hooks/useTasks", () => ({
   useTasks: vi.fn(),
 }));
 
+// Agregar mock para useToast
+vi.mock("@/hooks/use-toast", () => ({
+  useToast: () => ({
+    toast: vi.fn(),
+  }),
+}));
+
+// Agregar mock de ResizeObserver antes de las pruebas
+class ResizeObserverMock {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
+beforeAll(() => {
+  // @ts-ignore
+  global.ResizeObserver = ResizeObserverMock;
+});
+
 describe("Task Creation and Listing Flow", () => {
   const mockRouter = { push: vi.fn() };
 
@@ -63,6 +82,23 @@ describe("Task Creation and Listing Flow", () => {
                 createdAt: new Date().toISOString(),
               },
             }),
+        });
+      }
+      if (url.includes("/api/tasks/") && url.includes("/rating")) {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              clientSatisfaction: 0,
+              clientWeight: 0,
+              effort: 0,
+            }),
+        });
+      }
+      if (url.includes("/api/organizations/")) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ effortLimit: 10 }),
         });
       }
       return Promise.resolve({
@@ -220,6 +256,23 @@ describe("Task Creation and Listing Flow", () => {
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve({ success: true }),
+        });
+      }
+      if (url.includes("/api/tasks/") && url.includes("/rating")) {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              clientSatisfaction: 0,
+              clientWeight: 0,
+              effort: 0,
+            }),
+        });
+      }
+      if (url.includes("/api/organizations/")) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ effortLimit: 10 }),
         });
       }
       return Promise.resolve({
