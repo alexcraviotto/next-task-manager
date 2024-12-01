@@ -222,13 +222,15 @@ export default function OrganizationsPage() {
                   </div>
                 </div>
               )}
-              <Button
-                variant="secondary"
-                onClick={handleCreateOrg}
-                className="w-full bg-black/50 text-white rounded-lg mt-4 hover:bg-black/70"
-              >
-                Crear organización
-              </Button>
+              {session?.user?.isAdmin && (
+                <Button
+                  variant="secondary"
+                  onClick={handleCreateOrg}
+                  className="w-full bg-black/50 text-white rounded-lg mt-4 hover:bg-black/70"
+                >
+                  Formar organización
+                </Button>
+              )}
               {showCreateOrg && (
                 <CreateOrganization
                   isOpen={showCreateOrg}
