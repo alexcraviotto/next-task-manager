@@ -12,7 +12,7 @@ import { TaskRating, ClientRating } from "@/lib/types";
 
 interface ExtendedClientMetrics extends ClientRating {
   coverage: number;
-  contributionToTotal: number;
+  contributionToClient: number;
   contributionToRequirement: number;
 }
 
@@ -46,28 +46,29 @@ export default function Solution({
   const calculateClientMetrics = (
     taskRating: (typeof taskRatings)[number],
     clientRating: ClientRating,
-    task: Task,
     totalSatisfaction: number,
   ): ExtendedClientMetrics => {
-    const clientWeight = clientRating.organizationWeight;
-    const clientValoracion = clientRating.valoracion;
-    const taskSatisfaction = taskRating.clientSatisfaction;
+    const clientWeight = clientRating.organizationWeight || 1;
+    const clientValoracion = clientRating.valoracion || 0;
+    const taskSatisfaction = taskRating.clientSatisfaction || 1;
 
     // Calcular contribución al total
-    const contributionToTotal =
-      (clientWeight * clientValoracion) / totalSatisfaction;
+    const contributionToClient =
+      totalSatisfaction !== 0 ? clientValoracion / totalSatisfaction : 0;
 
     // Calcular contribución al requisito
     const contributionToRequirement =
-      (clientWeight * clientValoracion) / taskSatisfaction;
+      taskSatisfaction !== 0
+        ? (clientWeight * clientValoracion) / taskSatisfaction
+        : 0;
 
     // Calcular cobertura
-    const coverage = clientValoracion / clientWeight;
+    const coverage = clientWeight !== 0 ? clientValoracion / clientWeight : 0;
 
     return {
       ...clientRating,
       coverage,
-      contributionToTotal,
+      contributionToClient,
       contributionToRequirement,
     };
   };
@@ -226,7 +227,6 @@ export default function Solution({
                   const metrics = calculateClientMetrics(
                     rating,
                     clientRating,
-                    task,
                     rating.clientSatisfaction,
                   );
 
@@ -252,7 +252,7 @@ export default function Solution({
                         <div className="flex flex-col gap-1">
                           <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs rounded-full bg-purple-50 text-purple-700">
                             Cont. Cliente:{" "}
-                            {(metrics.contributionToTotal * 100).toFixed(1)}%
+                            {(metrics.contributionToClient * 100).toFixed(1)}%
                           </span>
                           <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs rounded-full bg-green-50 text-green-700">
                             Cont. Req:{" "}
