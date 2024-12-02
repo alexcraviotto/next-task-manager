@@ -6,7 +6,6 @@ import { authOptions } from "@/lib/authOptions";
 
 const updateTaskSchema = z.object({
   organizationId: z.string(),
-  effort: z.number().min(0).int().optional(),
   clientWeight: z.number().min(0).int().optional(),
 });
 
@@ -31,11 +30,8 @@ export async function PATCH(
     const body = await req.json();
     console.log("🏆🏆body🏆🏆", body);
 
-    const {
-      organizationId,
-      effort,
-      clientWeight: newClientWeight,
-    } = updateTaskSchema.parse(body);
+    const { organizationId, clientWeight: newClientWeight } =
+      updateTaskSchema.parse(body);
 
     const taskId = parseInt(params.id, 10);
     console.log("🏆🏆taskId convertido🏆🏆", taskId);
@@ -44,7 +40,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Invalid task ID" }, { status: 400 });
     }
 
-    if (!effort && !newClientWeight) {
+    if (newClientWeight === undefined) {
       return NextResponse.json(
         {
           error: "At least one field (effort or clientWeight) must be provided",
@@ -56,36 +52,9 @@ export async function PATCH(
     const userId = user.id;
     let updatedRating;
 
-    // Si se actualiza el esfuerzo
-    if (effort !== undefined) {
-      updatedRating = await prisma.taskRating.upsert({
-        where: {
-          taskId_userId: {
-            taskId: taskId,
-            userId: userId,
-          },
-        },
-        update: {
-          effort: effort,
-        },
-        create: {
-          taskId: taskId,
-          userId: userId,
-          effort: effort,
-          clientSatisfaction: 0,
-          clientWeight: 0,
-        },
-        select: {
-          effort: true,
-          clientWeight: true,
-          clientSatisfaction: true,
-        },
-      });
-    }
-
     // Si se actualiza la valoración
     if (newClientWeight !== undefined) {
-      const previousRating = await prisma.taskRating.findFirst({
+      let existsRating = await prisma.taskRating.findFirst({
         where: {
           taskId: taskId,
           task: {
@@ -98,19 +67,29 @@ export async function PATCH(
         },
       });
 
-      if (!previousRating) {
-        return NextResponse.json(
-          { error: "Task rating not found" },
-          { status: 404 },
-        );
+      if (!existsRating) {
+        existsRating = await prisma.taskRating.create({
+          data: {
+            taskId: taskId,
+            userId: userId,
+            clientWeight: 0,
+            clientSatisfaction: 0,
+          },
+          select: {
+            clientWeight: true,
+            clientSatisfaction: true,
+          },
+        });
       }
 
       if (
-        previousRating.clientSatisfaction === null ||
-        previousRating.clientWeight === null
+        existsRating.clientSatisfaction === null ||
+        existsRating.clientWeight === null
       ) {
         return NextResponse.json(
-          { error: "Invalid rating values: satisfaction or weight is null" },
+          {
+            error: "Invalid rating values: satisfaction or weight is null",
+          },
           { status: 400 },
         );
       }
@@ -119,7 +98,7 @@ export async function PATCH(
       console.log("🚀 ~ newClientWeight:", newClientWeight);
 
       if (newClientWeight !== 0) {
-        if (previousRating.clientWeight === 0) {
+        if (existsRating.clientWeight === 0) {
           const organizationMembers = await prisma.userOrganization.findMany({
             where: {
               organizationId: organizationId,
@@ -137,7 +116,7 @@ export async function PATCH(
           console.log("🚀 ~ newSatisfaction 1:", newSatisfaction);
         } else {
           newSatisfaction = Math.round(
-            (previousRating.clientSatisfaction / previousRating.clientWeight) *
+            (existsRating.clientSatisfaction / existsRating.clientWeight) *
               newClientWeight,
           );
           console.log("🚀 ~ newSatisfaction 2:", newSatisfaction);
@@ -160,10 +139,8 @@ export async function PATCH(
           userId: userId,
           clientWeight: newClientWeight,
           clientSatisfaction: newSatisfaction,
-          effort: 0,
         },
         select: {
-          effort: true,
           clientWeight: true,
           clientSatisfaction: true,
         },
@@ -175,7 +152,6 @@ export async function PATCH(
       {
         message: "Task updated successfully",
         rating: {
-          effort: updatedRating?.effort,
           clientWeight: updatedRating?.clientWeight,
           clientSatisfaction: updatedRating?.clientSatisfaction,
         },

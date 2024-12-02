@@ -74,6 +74,7 @@ export interface Task {
   createdAt: string;
   effort: number;
   deselected?: boolean;
+  createdBy?: number;
 }
 export interface Member {
   id: number;
@@ -83,4 +84,35 @@ export interface Member {
   createdAt: string;
   updatedAt: string;
   weight: number;
+}
+
+export interface ClientRating {
+  id: number;
+  username: string;
+  organizationWeight: number; // peso del cliente en la organización
+  satisfaction: number; // satisfacción calculada para el requisito
+  valoracion: number; // valoración del cliente con respecto al requisito
+}
+
+export interface TaskRating {
+  userId: number;
+  username: string;
+  email: string;
+  organizationWeight: number;
+  rating: {
+    clientWeight: number;
+    clientSatisfaction: number;
+  };
+}
+
+export interface OrganizationMember {
+  id: number;
+  username: string;
+  weight: number; // peso del miembro en la organización
+}
+
+export interface TaskRatingResponse {
+  totalSatisfaction: number;
+  ratings: TaskRating[];
+  taskId: number;
 }

@@ -39,6 +39,7 @@ export async function GET(
             email: true,
             createdAt: true,
             updatedAt: true,
+            isAdmin: true, // Add this
           },
         },
       },
@@ -48,7 +49,7 @@ export async function GET(
       id: member.userId,
       username: member.User.username,
       email: member.User.email,
-      isAdmin: member.weight >= 5,
+      isAdmin: member.User.isAdmin,
       createdAt: member.User.createdAt.toISOString(),
       updatedAt: member.User.updatedAt.toISOString(),
       weight: member.weight,

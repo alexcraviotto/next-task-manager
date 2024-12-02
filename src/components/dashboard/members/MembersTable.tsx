@@ -83,6 +83,7 @@ export function MembersTable({
         body: JSON.stringify({
           organizationId: organizationId,
           newWeight: newWeight,
+          userId,
         }),
       });
       const data = await response.json();

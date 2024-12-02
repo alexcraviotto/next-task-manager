@@ -111,7 +111,7 @@ export async function GET(req: NextRequest) {
                 select: {
                   clientSatisfaction: true,
                   clientWeight: true,
-                  effort: true,
+                  taskId: true,
                 },
               },
               dependencies: true,

@@ -20,7 +20,16 @@ export async function PUT(
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
 
-    const updates = await req.json();
+    const updates: {
+      name?: string;
+      description?: string;
+      type?: string;
+      progress?: number;
+      startDate?: string;
+      endDate?: string;
+      deselected?: boolean;
+      effort?: number;
+    } = await req.json();
 
     // Validar progress primero si está presente
     if (
@@ -65,6 +74,7 @@ export async function PUT(
         startDate: new Date(updates.startDate),
         endDate: new Date(updates.endDate),
         deselected: updates.deselected ?? false,
+        effort: updates.effort,
       },
     });
 

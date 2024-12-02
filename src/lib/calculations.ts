@@ -1,68 +1,91 @@
-interface TaskRating {
-  clientSatisfaction: number;
-  clientWeight: number;
-  effort: number;
-}
-
-interface TaskWithRatings {
-  id: number;
-  name: string;
-  ratings: TaskRating;
-}
-
 export const calculations = {
-  // Calcula la productividad (satisfacción/esfuerzo)
-  calculateProductivity: (satisfaction: number, effort: number): number => {
-    if (effort === 0) return 0;
-    return Number((satisfaction / effort).toFixed(2));
+  calculateProductivity(satisfaction: number, effort: number): number {
+    if (!satisfaction || !effort || effort <= 0) return 0;
+    return satisfaction / effort;
   },
 
-  // Calcula la contribución (satisfacción individual / satisfacción total)
-  calculateContribution: (
-    taskSatisfaction: number,
+  calculateContributionToCliente(
+    requirementSatisfaction: number,
     totalSatisfaction: number,
-  ): number => {
-    if (totalSatisfaction === 0) return 0;
-    return Number((taskSatisfaction / totalSatisfaction).toFixed(2));
+  ): number {
+    if (
+      !requirementSatisfaction ||
+      !totalSatisfaction ||
+      totalSatisfaction <= 0
+    )
+      return 0;
+    return requirementSatisfaction / totalSatisfaction;
   },
 
-  // Calcula la cobertura (satisfacción acumulada / satisfacción máxima posible)
-  calculateCoverage: (
-    currentSatisfaction: number,
-    maxPossibleSatisfaction: number,
-  ): number => {
-    if (maxPossibleSatisfaction === 0) return 0;
-    return Number((currentSatisfaction / maxPossibleSatisfaction).toFixed(2));
+  calculateContributionToRequirement(
+    clientWeight: number,
+    clientPriority: number,
+    requirementSatisfaction: number,
+  ): number {
+    if (
+      !clientWeight ||
+      !clientPriority ||
+      !requirementSatisfaction ||
+      requirementSatisfaction <= 0
+    )
+      return 0;
+    return (clientWeight * clientPriority) / requirementSatisfaction;
   },
 
-  // Calcula métricas globales para todas las tareas
-  calculateGlobalMetrics: (tasks: TaskWithRatings[]) => {
-    const totalSatisfaction = tasks.reduce(
-      (sum, task) => sum + task.ratings.clientSatisfaction,
-      0,
-    );
+  calculateCoverage(priorities: number[], weights: number[]): number {
+    const totalWeights = weights.reduce((sum, w) => sum + (w || 0), 0);
+    if (!totalWeights) return 0;
+    return priorities.reduce((sum, p) => sum + (p || 0), 0) / totalWeights;
+  },
 
-    const totalEffort = tasks.reduce(
-      (sum, task) => sum + task.ratings.effort,
-      0,
-    );
-
-    const maxPossibleSatisfaction = tasks.reduce((sum, task) => {
-      const maxClientWeight = 5; // Valor máximo posible de peso
-      return sum + task.ratings.clientWeight * maxClientWeight;
+  calculateTaskSatisfaction(
+    clientWeights: number[],
+    organizationWeights: number[],
+  ): number {
+    return clientWeights.reduce((total, weight, index) => {
+      const orgWeight = organizationWeights[index] || 0;
+      return total + (weight || 0) * orgWeight;
     }, 0);
+  },
 
-    return {
+  calculateGlobalMetrics(
+    tasks: Array<{
+      id: number;
+      name: string;
+      ratings: {
+        clientSatisfaction: number;
+        clientWeight: number;
+      };
+      effort: number;
+    }>,
+  ) {
+    const filteredTasks = tasks.filter((t) => t.ratings && t.effort > 0);
+
+    const totalEffort = filteredTasks.reduce(
+      (sum, t) => sum + (t.effort || 0),
+      0,
+    );
+    const totalSatisfaction = filteredTasks.reduce(
+      (sum, t) => sum + (t.ratings.clientSatisfaction || 0),
+      0,
+    );
+
+    const priorities = filteredTasks.map(
+      (t) => t.ratings.clientSatisfaction || 0,
+    );
+    const weights = filteredTasks.map((t) => t.ratings.clientWeight || 0);
+
+    const coverage = this.calculateCoverage(priorities, weights);
+    const totalProductivity = this.calculateProductivity(
       totalSatisfaction,
       totalEffort,
-      totalProductivity: calculations.calculateProductivity(
-        totalSatisfaction,
-        totalEffort,
-      ),
-      coverage: calculations.calculateCoverage(
-        totalSatisfaction,
-        maxPossibleSatisfaction,
-      ),
+    );
+
+    return {
+      totalProductivity,
+      coverage,
+      totalEffort,
+      totalSatisfaction,
     };
   },
 };

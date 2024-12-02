@@ -91,6 +91,7 @@ describe("Members API", () => {
             id: 1,
             username: "user1",
             email: "user1@example.com",
+            isAdmin: true, // Add this field
             createdAt: new Date(),
             updatedAt: new Date(),
           },
