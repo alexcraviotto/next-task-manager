@@ -117,7 +117,7 @@ export function TaskTable({
       const response = await fetch(`/api/tasks/${taskId}/rating`);
       if (!response.ok) throw new Error("Failed to fetch ratings");
       const data: TaskRatingResponse = await response.json();
-
+      console.log("data task: ", JSON.stringify(data));
       setTaskRatings((prev) => ({
         ...prev,
         [taskId]: {
@@ -138,12 +138,13 @@ export function TaskTable({
 
   useEffect(() => {
     tasks.forEach((task) => {
+      console.log("task.id: ", task.id);
       loadTaskRatings(task.id);
     });
     fetch(`/api/organizations/${projectId}`)
       .then((res) => res.json())
       .then((data) => setEffortLimit(data.effortLimit));
-  }, []);
+  }, [projectId]);
 
   useEffect(() => {
     loadOrganizationMembers();
@@ -433,17 +434,25 @@ export function TaskTable({
     }
   };
 
-  const getClientRatings = (taskId: number): ClientRating[] => {
-    const taskRating = taskRatings[taskId];
-    if (!taskRating) return [];
-
-    return taskRating.ratings.map((rating) => ({
-      id: rating.userId,
-      username: rating.username,
-      organizationWeight: rating.organizationWeight, // peso del cliente en la organización
-      satisfaction: taskRating.clientSatisfaction, // satisfacción calculada para el requisito,
-      valoracion: rating.rating.clientWeight, // valoración del cliente con respecto al requisito
-    }));
+  const getClientRatings = (
+    tasks: Task[],
+  ): { taskId: number; clientRating: ClientRating[] }[] => {
+    return tasks.map((task) => {
+      const taskRating = taskRatings[task.id];
+      console.log("taskRating: ", taskRating);
+      console.log("taskid: ", task.id);
+      if (!taskRating) return { taskId: task.id, clientRating: [] };
+      return {
+        taskId: task.id,
+        clientRating: taskRating.ratings.map((rating) => ({
+          id: rating.userId,
+          username: rating.username,
+          organizationWeight: rating.organizationWeight, // peso del cliente en la organización
+          satisfaction: taskRating.clientSatisfaction, // satisfacción calculada para el requisito,
+          valoracion: rating.rating.clientWeight, // valoración del cliente con respecto al requisito
+        })),
+      };
+    });
   };
 
   return (
@@ -626,7 +635,7 @@ export function TaskTable({
           taskRatings={taskRatings}
           effortFilter={effortFilter}
           effortLimit={effortLimit}
-          clientRatings={getClientRatings(tasks[0]?.id)} // Pasar las valoraciones de los clientes
+          clientRatings={getClientRatings(tasks)}
         />
       )}
 

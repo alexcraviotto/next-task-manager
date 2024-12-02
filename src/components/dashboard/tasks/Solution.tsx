@@ -40,39 +40,11 @@ export default function Solution({
     };
   };
   effortFilter: number;
-  clientRatings: ClientRating[];
+  clientRatings: {
+    taskId: number;
+    clientRating: ClientRating[];
+  }[];
 }) {
-  // Helper function to calculate client metrics
-  const calculateClientMetrics = (
-    taskRating: (typeof taskRatings)[number],
-    clientRating: ClientRating,
-    totalSatisfaction: number,
-  ): ExtendedClientMetrics => {
-    const clientWeight = clientRating.organizationWeight || 1;
-    const clientValoracion = clientRating.valoracion || 0;
-    const taskSatisfaction = taskRating.clientSatisfaction || 1;
-
-    // Calcular contribución al total
-    const contributionToClient =
-      totalSatisfaction !== 0 ? clientValoracion / totalSatisfaction : 0;
-
-    // Calcular contribución al requisito
-    const contributionToRequirement =
-      taskSatisfaction !== 0
-        ? (clientWeight * clientValoracion) / taskSatisfaction
-        : 0;
-
-    // Calcular cobertura
-    const coverage = clientWeight !== 0 ? clientValoracion / clientWeight : 0;
-
-    return {
-      ...clientRating,
-      coverage,
-      contributionToClient,
-      contributionToRequirement,
-    };
-  };
-
   const filteredTasks = tasks
     .filter((task) => !task.deselected) // Filtrar tareas no deseleccionadas
     .map((task) => {
@@ -134,6 +106,85 @@ export default function Solution({
         contributionToRequirement: number;
       }>,
     );
+  // Helper function to calculate client metrics
+  const calculateClientMetrics = (
+    taskRating: (typeof taskRatings)[number],
+    clientRating: ClientRating,
+    totalSatisfaction: number,
+  ): ExtendedClientMetrics => {
+    console.log("task rating: ", taskRating);
+    const valoracionesTotales = Object.values(taskRatings).reduce(
+      (acc, curr) =>
+        acc +
+        (curr.ratings.find((r) => r.userId === clientRating.id)?.rating
+          ?.clientWeight ?? 0),
+      0,
+    );
+    console.log("valoraciones totales: ", valoracionesTotales);
+    console.log("filtered tasks: ", filteredTasks);
+    const valoracionesTotalesSolucion = Object.entries(taskRatings)
+      .filter(([taskId]) =>
+        filteredTasks.map((ft) => ft.task.id).includes(Number(taskId)),
+      )
+      .map((ft) => ft[1])
+      .reduce(
+        (acc, curr) =>
+          acc +
+          (curr.ratings.find((r) => r.userId === clientRating.id)?.rating
+            ?.clientWeight ?? 0),
+        0,
+      );
+    console.log("valoraciones totales solucion: ", valoracionesTotalesSolucion);
+
+    const clientWeight = clientRating.organizationWeight || 1;
+    const clientValoracion = clientRating.valoracion || 0;
+    const taskSatisfaction = taskRating.clientSatisfaction || 1;
+
+    const contributionCalc = Object.entries(taskRatings)
+      .filter(([taskId]) =>
+        filteredTasks.map((ft) => ft.task.id).includes(Number(taskId)),
+      )
+      .map((ft) => ft[1])
+      .reduce(
+        (acc, curr) =>
+          acc +
+          clientWeight *
+            (curr.ratings.find((r) => r.userId === clientRating.id)?.rating
+              ?.clientWeight ?? 0),
+        0,
+      );
+
+    console.log("contribution calc: ", contributionCalc);
+    console.log("total satisfaction: ", totalSatisfaction);
+    const satisfaccionesSolucion = Object.entries(taskRatings)
+      .filter(([taskId]) =>
+        filteredTasks.map((ft) => ft.task.id).includes(Number(taskId)),
+      )
+      .map((ft) => ft[1])
+      .reduce((acc, curr) => acc + curr.clientSatisfaction, 0);
+    // Calcular contribución al total
+    const contributionToClient =
+      totalSatisfaction !== 0 ? contributionCalc / satisfaccionesSolucion : 0;
+
+    // Calcular contribución al requisito
+    const contributionToRequirement =
+      taskSatisfaction !== 0
+        ? (clientWeight * clientValoracion) / taskSatisfaction
+        : 0;
+
+    // Calcular cobertura
+    const coverage =
+      valoracionesTotales !== 0
+        ? valoracionesTotalesSolucion / valoracionesTotales
+        : 0;
+
+    return {
+      ...clientRating,
+      coverage,
+      contributionToClient,
+      contributionToRequirement,
+    };
+  };
 
   return (
     <div className="mt-8 space-y-6 bg-gray-50 p-6 rounded-lg border border-gray-200">
@@ -223,54 +274,56 @@ export default function Solution({
                 </TableRow>
 
                 {/* Detalles de cada cliente */}
-                {clientRatings.map((clientRating) => {
-                  const metrics = calculateClientMetrics(
-                    rating,
-                    clientRating,
-                    rating.clientSatisfaction,
-                  );
+                {clientRatings
+                  .find((cr) => cr.taskId === task.id)
+                  ?.clientRating.map((clientRating) => {
+                    const metrics = calculateClientMetrics(
+                      rating,
+                      clientRating,
+                      rating.clientSatisfaction,
+                    );
 
-                  return (
-                    <TableRow
-                      key={`client-${task.id}-${metrics.id}`}
-                      className="text-sm border-b border-gray-100"
-                    >
-                      <TableCell className="pl-8 text-gray-600">
-                        {metrics.username}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs rounded-full bg-blue-50 text-blue-700">
-                          Peso: {metrics.organizationWeight}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs rounded-full bg-pink-50 text-pink-700">
-                          Valor: {metrics.valoracion}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <div className="flex flex-col gap-1">
-                          <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs rounded-full bg-purple-50 text-purple-700">
-                            Cont. Cliente:{" "}
-                            {(metrics.contributionToClient * 100).toFixed(1)}%
+                    return (
+                      <TableRow
+                        key={`client-${task.id}-${metrics.id}`}
+                        className="text-sm border-b border-gray-100"
+                      >
+                        <TableCell className="pl-8 text-gray-600">
+                          {metrics.username}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs rounded-full bg-blue-50 text-blue-700">
+                            Peso: {metrics.organizationWeight}
                           </span>
-                          <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs rounded-full bg-green-50 text-green-700">
-                            Cont. Req:{" "}
-                            {(metrics.contributionToRequirement * 100).toFixed(
-                              1,
-                            )}
-                            %
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs rounded-full bg-pink-50 text-pink-700">
+                            Valoracion: {metrics.valoracion}
                           </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs rounded-full bg-yellow-50 text-yellow-700">
-                          Cobertura: {(metrics.coverage * 100).toFixed(1)}%
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex flex-col gap-1">
+                            <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs rounded-full bg-purple-50 text-purple-700">
+                              Cont. Cliente:{" "}
+                              {(metrics.contributionToClient * 100).toFixed(1)}%
+                            </span>
+                            <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs rounded-full bg-green-50 text-green-700">
+                              Cont. Req:{" "}
+                              {(
+                                metrics.contributionToRequirement * 100
+                              ).toFixed(1)}
+                              %
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs rounded-full bg-yellow-50 text-yellow-700">
+                            Cobertura: {(metrics.coverage * 100).toFixed(1)}%
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
               </>
             ))}
           </TableBody>
