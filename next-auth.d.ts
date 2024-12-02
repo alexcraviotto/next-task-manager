@@ -7,6 +7,7 @@ declare module "next-auth" {
       username: string;
       name: string;
       isVerified?: boolean;
+      organizations?: { id: string }[];
     };
   }
 
@@ -15,5 +16,6 @@ declare module "next-auth" {
     username: string;
     name: string;
     isVerified?: boolean;
+    organizations?: { id: string }[];
   }
 }

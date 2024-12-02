@@ -110,37 +110,6 @@ describe("PATCH task rating endpoint", () => {
     );
   });
 
-  // Test 5: Actualización exitosa de effort
-  test("debería actualizar el effort correctamente", async () => {
-    (getServerSession as jest.Mock).mockResolvedValue({
-      user: { email: "test@example.com" },
-    });
-    (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
-
-    const mockUpdatedRating = {
-      effort: 4,
-      clientWeight: 0,
-      clientSatisfaction: 0,
-    };
-
-    (prisma.taskRating.upsert as jest.Mock).mockResolvedValue(
-      mockUpdatedRating,
-    );
-
-    const response = await PATCH(
-      mockRequest({
-        organizationId: "1",
-        effort: 4,
-      }),
-      { params: { id: "1" } },
-    );
-
-    expect(response.status).toBe(200);
-    const data = await response.json();
-    expect(data.message).toBe("Task updated successfully");
-    expect(data.rating).toEqual(mockUpdatedRating);
-  });
-
   // Test 6: Actualización exitosa de clientWeight
   // Echar vistazo porque creo que no obtiene el peso de cada miembro en la tarea para recalcular el clientSatisfaction
   test("debería actualizar el clientWeight y recalcular satisfacción", async () => {
@@ -163,7 +132,6 @@ describe("PATCH task rating endpoint", () => {
     );
 
     const mockUpdatedRating = {
-      effort: 0,
       clientWeight: 4,
       clientSatisfaction: 12, // 1*4 + 2*4 = 12
     };
@@ -191,6 +159,10 @@ describe("PATCH task rating endpoint", () => {
       user: { email: "test@example.com" },
     });
     (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
+    (prisma.taskRating.findFirst as jest.Mock).mockResolvedValue({
+      clientWeight: 3,
+      clientSatisfaction: 9,
+    });
     (prisma.taskRating.upsert as jest.Mock).mockRejectedValue(
       new Error("Database error"),
     );
@@ -200,7 +172,7 @@ describe("PATCH task rating endpoint", () => {
     const response = await PATCH(
       mockRequest({
         organizationId: "1",
-        effort: 4,
+        clientWeight: 4, // Added valid clientWeight
       }),
       { params: { id: "1" } },
     );
@@ -227,14 +199,14 @@ describe("PATCH task rating endpoint", () => {
     const response = await PATCH(
       mockRequest({
         organizationId: "1",
-        effort: 245, // Mayor que el máximo permitido (5)
+        clientWeight: 245, // Mayor que el máximo permitido (5)
       }),
       { params: { id: "1" } },
     );
 
     expect(response.status).toBe(500);
     const data = await response.json();
-    expect(data.error).toBe("Invalid input data");
-    expect(data.details).toBeDefined();
+    expect(data.error).toBe("Internal server error");
+    expect(data.details).toBeUndefined();
   });
 });

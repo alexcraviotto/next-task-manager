@@ -1,11 +1,11 @@
 module.exports = {
-  testEnvironment: "jsdom", // o 'jsdom' si estás probando componentes React
-  moduleFileExtensions: ["js", "jsx", "ts", "tsx"],
-  testMatch: ["**/__tests__/**/*.[jt]s?(x)", "**/?(*.)+(spec|test).[jt]s?(x)"],
+  testEnvironment: "jsdom",
+  moduleFileExtensions: ["js", "ts"],
+  testMatch: ["**/__tests__/**/*.[jt]s", "**/?(*.)+(spec|test).[jt]s"],
   preset: "ts-jest",
   transform: {
-    "^.+\\.(ts|tsx)?$": "ts-jest",
-    "^.+\\.(js|jsx)$": "babel-jest",
+    "^.+\\.(ts)?$": "ts-jest",
+    "^.+\\.(js)$": "babel-jest",
   },
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",

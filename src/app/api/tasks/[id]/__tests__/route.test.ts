@@ -21,6 +21,10 @@ jest.mock("@/lib/database", () => ({
 }));
 
 describe("Task Routes", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   describe("PUT /api/tasks/:id", () => {
     it("should return 200 and update the task if valid data is provided", async () => {
       const mockSession = { user: { id: "1" } };
@@ -59,7 +63,6 @@ describe("Task Routes", () => {
 
       const response = await PUT(req, { params: { id: "1" } });
       const data = await response.json();
-      console.log(data);
       expect(response.status).toBe(200);
       expect(data.task.name).toBe("Updated Task");
       expect(data.task.description).toBe("Updated Description");
@@ -87,32 +90,15 @@ describe("Task Routes", () => {
       expect(data.message).toBe("Unauthorized");
     });
 
-    it("should return 400 if invalid data is provided", async () => {
-      const mockSession = { user: { id: "1" } };
-      (getServerSession as jest.Mock).mockResolvedValueOnce(mockSession);
-
-      const req = new Request("http://localhost:3001/api/tasks/1", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: "",
-          description: "Updated Description",
-          type: "Task",
-          startDate: "2024-11-05",
-          endDate: "2024-11-06",
-        }),
-      }) as unknown as NextRequest;
-
-      const response = await PUT(req, { params: { id: "1" } });
-      const data = await response.json();
-
-      expect(response.status).toBe(400);
-      expect(data.error).toBe("Invalid data");
-    });
-
     it("should return 400 if progress is less than 0", async () => {
       const mockSession = { user: { id: "1" } };
       (getServerSession as jest.Mock).mockResolvedValueOnce(mockSession);
+
+      const mockTask = {
+        id: 1,
+        createdById: 1,
+      };
+      (prisma.task.findUnique as jest.Mock).mockResolvedValueOnce(mockTask);
 
       const req = new Request("http://localhost:3001/api/tasks/1", {
         method: "PUT",
@@ -138,6 +124,17 @@ describe("Task Routes", () => {
       const mockSession = { user: { id: "1" } };
       (getServerSession as jest.Mock).mockResolvedValueOnce(mockSession);
 
+      const mockTask = {
+        id: 1,
+        createdById: 1,
+        name: "Test Task",
+        type: "task",
+        startDate: new Date(),
+        endDate: new Date(),
+      };
+
+      (prisma.task.findUnique as jest.Mock).mockResolvedValueOnce(mockTask);
+
       const req = new Request("http://localhost:3001/api/tasks/1", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -156,6 +153,7 @@ describe("Task Routes", () => {
 
       expect(response.status).toBe(400);
       expect(data.error).toBe("Progress must be between 0 and 100");
+      expect(prisma.task.update).not.toHaveBeenCalled();
     });
 
     it("should update task with valid progress value", async () => {
@@ -198,6 +196,142 @@ describe("Task Routes", () => {
       expect(response.status).toBe(200);
       expect(data.task.progress).toBe(75);
     });
+
+    it("should return 404 if task is not found", async () => {
+      const mockSession = { user: { id: "1" } };
+      (getServerSession as jest.Mock).mockResolvedValueOnce(mockSession);
+
+      (prisma.task.findUnique as jest.Mock).mockResolvedValueOnce(null);
+
+      const req = new Request("http://localhost:3001/api/tasks/1", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Updated Task",
+          description: "Updated Description",
+          type: "Task",
+          startDate: "2024-11-05",
+          endDate: "2024-11-06",
+        }),
+      }) as unknown as NextRequest;
+
+      const response = await PUT(req, { params: { id: "1" } });
+      const data = await response.json();
+
+      expect(response.status).toBe(404);
+      expect(data.error).toBe("Task not found");
+    });
+
+    it("should return 400 if name is not provided", async () => {
+      const mockSession = { user: { id: "1" } };
+      (getServerSession as jest.Mock).mockResolvedValueOnce(mockSession);
+
+      const mockTask = {
+        id: 1,
+        createdById: 1,
+      };
+      (prisma.task.findUnique as jest.Mock).mockResolvedValueOnce(mockTask);
+
+      const req = new Request("http://localhost:3001/api/tasks/1", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "",
+          description: "Updated Description",
+          type: "Task",
+          startDate: "2024-11-05",
+          endDate: "2024-11-06",
+        }),
+      }) as unknown as NextRequest;
+
+      const response = await PUT(req, { params: { id: "1" } });
+      const data = await response.json();
+      expect(response.status).toBe(400);
+      expect(data.error).toBe(
+        "Required fields missing (name, type, startDate, endDate)",
+      );
+    });
+
+    it("should handle deselected field update separately", async () => {
+      const mockSession = { user: { id: "1" } };
+      (getServerSession as jest.Mock).mockResolvedValueOnce(mockSession);
+
+      const mockTask = {
+        id: 1,
+        createdById: 1,
+      };
+      (prisma.task.findUnique as jest.Mock).mockResolvedValueOnce(mockTask);
+      (prisma.task.update as jest.Mock).mockResolvedValueOnce({
+        ...mockTask,
+        deselected: true,
+      });
+
+      const req = new Request("http://localhost:3001/api/tasks/1", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deselected: true }),
+      }) as unknown as NextRequest;
+
+      const response = await PUT(req, { params: { id: "1" } });
+      expect(response.status).toBe(201);
+    });
+
+    it("should return 400 if required fields are missing", async () => {
+      const mockSession = { user: { id: "1" } };
+      (getServerSession as jest.Mock).mockResolvedValueOnce(mockSession);
+
+      const mockTask = {
+        id: 1,
+        createdById: 1,
+      };
+      (prisma.task.findUnique as jest.Mock).mockResolvedValueOnce(mockTask);
+
+      const req = new Request("http://localhost:3001/api/tasks/1", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "",
+          description: "Updated Description",
+        }),
+      }) as unknown as NextRequest;
+
+      const response = await PUT(req, { params: { id: "1" } });
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBe(
+        "Required fields missing (name, type, startDate, endDate)",
+      );
+    });
+
+    it("should validate progress range", async () => {
+      const mockSession = { user: { id: "1" } };
+      (getServerSession as jest.Mock).mockResolvedValueOnce(mockSession);
+
+      const mockTask = {
+        id: 1,
+        createdById: 1,
+      };
+      (prisma.task.findUnique as jest.Mock).mockResolvedValueOnce(mockTask);
+
+      const req = new Request("http://localhost:3001/api/tasks/1", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Task",
+          type: "task",
+          startDate: "2024-01-01",
+          endDate: "2024-01-02",
+          progress: 101,
+        }),
+      }) as unknown as NextRequest;
+
+      const response = await PUT(req, { params: { id: "1" } });
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBe("Progress must be between 0 and 100");
+    });
   });
 
   describe("DELETE /api/tasks/:id", () => {
@@ -225,7 +359,6 @@ describe("Task Routes", () => {
 
       const response = await DELETE(req, { params: { id: "1" } });
       const data = await response.json();
-      console.log(data);
       expect(response.status).toBe(200);
       expect(data.message).toBe("Task deleted successfully");
     });
@@ -261,6 +394,34 @@ describe("Task Routes", () => {
 
       expect(response.status).toBe(404);
       expect(data.error).toBe("Task not found");
+    });
+
+    it("should return 403 if user is not the creator of the task", async () => {
+      const mockSession = { user: { id: "2" } };
+      (getServerSession as jest.Mock).mockResolvedValueOnce(mockSession);
+
+      const mockTask = {
+        id: 1,
+        name: "Task to Delete",
+        description: "Task Description",
+        type: "Task",
+        startDate: new Date("2024-11-01"),
+        endDate: new Date("2024-11-02"),
+        createdById: 1,
+      };
+
+      (prisma.task.findUnique as jest.Mock).mockResolvedValueOnce(mockTask);
+
+      const req = new Request("http://localhost:3001/api/tasks/1", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+      }) as unknown as NextRequest;
+
+      const response = await DELETE(req, { params: { id: "1" } });
+      const data = await response.json();
+
+      expect(response.status).toBe(403);
+      expect(data.message).toBe("Forbidden");
     });
   });
 

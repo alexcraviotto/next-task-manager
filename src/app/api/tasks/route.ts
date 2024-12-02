@@ -5,7 +5,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/authOptions";
 
 export async function POST(req: NextRequest) {
-  //const session = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
   const session = await getServerSession(authOptions);
   console.log(session);
   if (!session) {
@@ -25,20 +24,10 @@ export async function POST(req: NextRequest) {
     endDate,
     organizationId,
   } = await req.json();
-  if (
-    !name ||
-    !description ||
-    !type ||
-    !startDate ||
-    !endDate ||
-    !organizationId
-  ) {
+  if (!name || !organizationId) {
     console.log(name, description, type, startDate, endDate, organizationId);
     console.log("Invalid parameters");
-    return NextResponse.json(
-      { message: "Invalid parameters" },
-      { status: 400 },
-    );
+    return NextResponse.json({ message: "Name required" }, { status: 400 });
   }
   const userId = Number(session.user.id);
 
@@ -50,7 +39,7 @@ export async function POST(req: NextRequest) {
     const newTask = await prisma.task.create({
       data: {
         name,
-        description,
+        description: description ?? "",
         type,
         startDate: new Date(startDate),
         endDate: new Date(endDate),

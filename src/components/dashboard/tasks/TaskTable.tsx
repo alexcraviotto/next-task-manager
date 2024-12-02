@@ -27,16 +27,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Task } from "@/lib/types";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { ArrowUpDown } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useToast } from "@/hooks/use-toast";
-
+import { calculations } from "@/lib/calculations";
+import Solution from "./Solution";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
+import {
+  TaskRating,
+  TaskRatingResponse,
+  OrganizationMember,
+  ClientRating,
+} from "@/lib/types";
 interface TaskTableProps {
   projectId: string;
   tasks: Task[];
@@ -76,64 +79,127 @@ export function TaskTable({
   const { data: session } = useSession();
   const { toast } = useToast();
   const [effortFilter, setEffortFilter] = useState(0);
+  const [effortLimit, setEffortLimit] = useState(0);
 
   // TaskRating
   const [taskRatings, setTaskRatings] = useState<{
     [key: number]: {
-      clientSatisfaction: number;
       clientWeight: number;
-      effort: number;
+      clientSatisfaction: number;
+      ratings: TaskRating[];
     };
   }>({});
+  const [loadingRatings, setLoadingRatings] = useState<Record<number, boolean>>(
+    {},
+  );
 
-  const loadTaskRatings = async (taskId: number) => {
+  // Añadir estado para los miembros de la organización
+  const [organizationMembers, setOrganizationMembers] = useState<
+    OrganizationMember[]
+  >([]);
+
+  // Función para cargar los miembros de la organización
+  const loadOrganizationMembers = async () => {
     try {
-      const response = await fetch(`/api/tasks/${taskId}/rating`);
-      if (!response.ok) throw new Error("Failed to fetch ratings");
-      const data = await response.json();
-      setTaskRatings((prev) => ({
-        ...prev,
-        [taskId]: data,
-      }));
+      const response = await fetch(`/api/organizations/${projectId}/members`);
+      if (!response.ok) throw new Error("Failed to fetch members");
+      const data: OrganizationMember[] = await response.json();
+      setOrganizationMembers(data);
     } catch (error) {
-      console.error("Error loading task ratings:", error);
+      console.error("Error loading organization members:", error);
     }
   };
 
-  // Modifica el useEffect para cargar los ratings iniciales
+  const loadTaskRatings = async (taskId: number) => {
+    try {
+      setLoadingRatings((prev) => ({ ...prev, [taskId]: true }));
+
+      const response = await fetch(`/api/tasks/${taskId}/rating`);
+      if (!response.ok) throw new Error("Failed to fetch ratings");
+      const data: TaskRatingResponse = await response.json();
+
+      setTaskRatings((prev) => ({
+        ...prev,
+        [taskId]: {
+          clientSatisfaction: data.totalSatisfaction,
+          clientWeight: session?.user
+            ? (data.ratings.find((r) => r.userId === Number(session?.user?.id))
+                ?.rating?.clientWeight ?? 0)
+            : 0,
+          ratings: data.ratings,
+        },
+      }));
+    } catch (error) {
+      console.error("Error loading task ratings:", error);
+    } finally {
+      setLoadingRatings((prev) => ({ ...prev, [taskId]: false }));
+    }
+  };
+
   useEffect(() => {
     tasks.forEach((task) => {
       loadTaskRatings(task.id);
     });
-  }, [tasks]);
+    fetch(`/api/organizations/${projectId}`)
+      .then((res) => res.json())
+      .then((data) => setEffortLimit(data.effortLimit));
+  }, []);
+
+  useEffect(() => {
+    loadOrganizationMembers();
+  }, [projectId]);
+
+  useEffect(() => {
+    if (organizationMembers.length > 0) {
+      tasks.forEach((task) => {
+        loadTaskRatings(task.id);
+      });
+    }
+  }, [tasks, organizationMembers]);
 
   //
   const handleAddTask = () => {
-    const today = new Date().toISOString();
-    const newTask: Omit<Task, "id" | "createdAt"> = {
+    const today = new Date();
+    const startDate = today.toISOString();
+    const endDate = new Date(today.setDate(today.getDate() + 1)).toISOString();
+    const newTask: Omit<Task, "id"> = {
       name: "",
       description: "",
       type: "task",
-      startDate: today,
-      endDate: today,
+      startDate: startDate,
+      endDate: endDate,
       progress: 0,
       dependencies: 0,
       weight: 0,
       organizationId: projectId,
       effort: 0,
+      createdAt: startDate,
     };
     setEditingTask(newTask as Task);
     setIsDialogOpen(true);
   };
 
+  // Añadir un estado para mantener los valores editados
+  const [editedValues, setEditedValues] = useState<{
+    weight?: number;
+    effort?: number;
+  }>({});
+
   const handleEditTask = (task: Task) => {
     setEditingTask(task);
+    // Resetear los valores editados cuando se abre el diálogo
+    setEditedValues({
+      weight: taskRatings[task.id]?.clientWeight ?? 0,
+    });
     setIsDialogOpen(true);
   };
 
   const updateTaskRating = async (
     taskId: number,
-    data: { organizationId?: string; effort?: number; clientWeight?: number },
+    data: {
+      organizationId?: string;
+      clientWeight?: number;
+    },
   ) => {
     setIsLoading(true);
     console.log("Loading: ", isLoading);
@@ -141,7 +207,6 @@ export function TaskTable({
     console.log("Error: ", error);
 
     console.log("organizationId: ", data.organizationId);
-    console.log("effort: ", data.effort);
     console.log("clientWeight: ", data.clientWeight);
     try {
       const response = await fetch(`/api/tasks/${taskId}/feedback`, {
@@ -155,6 +220,7 @@ export function TaskTable({
       if (!response.ok) {
         throw new Error(result.error || "Error al actualizar la valoración");
       }
+      await loadTaskRatings(taskId);
       return result;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error desconocido");
@@ -171,10 +237,11 @@ export function TaskTable({
     return end >= start;
   };
 
+  // Modificar la validación en handleSaveTask
   const handleSaveTask = async () => {
     if (!editingTask) return;
 
-    // Validar fechas antes de guardar
+    // Validar fechas
     if (!validateDates(editingTask.startDate, editingTask.endDate)) {
       setError(
         "La fecha de fin debe ser posterior o igual a la fecha de inicio",
@@ -188,24 +255,35 @@ export function TaskTable({
       return;
     }
 
+    // Validar peso y esfuerzo
+    if (
+      editingTask.weight < 0 ||
+      editingTask.weight > 5 ||
+      editingTask.effort < 0 ||
+      editingTask.effort > 5
+    ) {
+      setError("El peso y el esfuerzo deben estar entre 0 y 5");
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "El peso y el esfuerzo deben estar entre 0 y 5",
+      });
+      return;
+    }
+
     try {
-      let updatedTask;
+      let updatedTask: Task;
       if ("id" in editingTask) {
         updatedTask = await onUpdateTask(editingTask.id, editingTask);
 
         // Crear objeto de actualización con valores seguros
         const updateData = {
           organizationId: projectId,
-          effort: editingTask.effort ?? 0,
-          clientWeight: editingTask.weight ?? 0, // Usar 0 si weight es undefined
+          clientWeight: editedValues.weight ?? 0, // Usar 0 si weight es undefined
         };
 
         console.log("Valores a enviar:", updateData);
-
-        await updateTaskRating(editingTask.id, updateData);
-
-        // Recargar los ratings después de actualizar
-        await loadTaskRatings(editingTask.id);
+        await updateTaskRating(updatedTask.id, updateData);
 
         toast({
           title: "Tarea actualizada",
@@ -213,7 +291,18 @@ export function TaskTable({
         });
       } else {
         // Si es una nueva tarea
-        updatedTask = await onAddTask(editingTask);
+        updatedTask = await onAddTask(editingTask as Omit<Task, "id">);
+        console.log(
+          "🚀 ~ handleSaveTask ~ updatedTask:",
+          JSON.stringify(updatedTask),
+        );
+
+        const updateData = {
+          organizationId: projectId,
+          clientWeight: editedValues.weight ?? 0, // Usar 0 si weight es undefined
+        };
+        await updateTaskRating(updatedTask.id, updateData);
+
         console.log("Tarea agregada:", updatedTask);
         toast({
           title: "Tarea creada",
@@ -283,114 +372,115 @@ export function TaskTable({
     }
   };
 
-  const [sortBy, setSortBy] = useState<
-    "satisfaction" | "effort" | "weight" | "none" | null
-  >("none");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  // Añadir nuevo estado para controlar la visibilidad de la solución
+  const [showSolution, setShowSolution] = useState(false);
 
-  const getSortedTasks = () => {
-    // Filtrar las tareas según el esfuerzo
-    const filteredTasks = tasks.filter((task) => {
-      const taskEffort = taskRatings[task.id]?.effort ?? 0;
-      return taskEffort <= effortFilter;
-    });
+  // Añadir estado para métricas
+  const [metrics, setMetrics] = useState<{
+    totalSatisfaction: number;
+    totalEffort: number;
+    totalProductivity: number;
+    coverage: number;
+  }>({
+    totalSatisfaction: 0,
+    totalEffort: 0,
+    totalProductivity: 0,
+    coverage: 0,
+  });
 
-    // Si no hay criterio de ordenación, devolvemos las tareas filtradas
-    if (!sortBy || sortBy === "none") return filteredTasks;
-
-    // Ordenar las tareas filtradas
-    return [...filteredTasks].sort((a, b) => {
-      const aRating = taskRatings[a.id] || {
+  // Calcular métricas cuando cambien las tareas o los ratings
+  useEffect(() => {
+    const tasksWithRatings = tasks.map((task) => ({
+      id: task.id,
+      name: task.name,
+      ratings: taskRatings[task.id] || {
         clientSatisfaction: 0,
-        effort: 0,
         clientWeight: 0,
-      };
-      const bRating = taskRatings[b.id] || {
-        clientSatisfaction: 0,
-        effort: 0,
-        clientWeight: 0,
-      };
+      },
+      effort: task.effort,
+    }));
 
-      let aValue = 0;
-      let bValue = 0;
+    const newMetrics = calculations.calculateGlobalMetrics(tasksWithRatings);
+    setMetrics(newMetrics);
+  }, [tasks, taskRatings]);
 
-      // Seleccionar el valor a ordenar según el criterio
-      switch (sortBy) {
-        case "satisfaction":
-          aValue = aRating.clientSatisfaction;
-          bValue = bRating.clientSatisfaction;
-          break;
-        case "effort":
-          aValue = aRating.effort;
-          bValue = bRating.effort;
-          break;
-        case "weight":
-          aValue = aRating.clientWeight;
-          bValue = bRating.clientWeight;
-          break;
-      }
-
-      // Orden ascendente o descendente
-      return sortOrder === "asc" ? aValue - bValue : bValue - aValue;
-    });
-
-    // Solo retorna los primeros 3 elementos cuando hay ordenamiento activo
+  const RatingCell = ({ taskId, value }: { taskId: number; value: number }) => {
+    if (loadingRatings[taskId]) {
+      return <Skeleton className="h-4 w-12" />;
+    }
+    return <span>{value}</span>;
   };
 
-  const handleSort = (type: "satisfaction" | "effort" | "weight") => {
-    if (sortBy === type) {
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-    } else {
-      setSortBy(type);
-      setSortOrder("desc");
+  const toggleTaskSelection = async (
+    taskId: number,
+    currentDeselected: boolean,
+  ) => {
+    try {
+      await onUpdateTask(taskId, { deselected: !currentDeselected });
+      toast({
+        title: currentDeselected ? "Tarea incluida" : "Tarea excluida",
+        description: currentDeselected
+          ? "La tarea se ha incluido en la solución"
+          : "La tarea se ha excluido de la solución",
+      });
+    } catch (error) {
+      console.error(error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No se pudo actualizar el estado de la tarea",
+      });
     }
+  };
+
+  const getClientRatings = (taskId: number): ClientRating[] => {
+    const taskRating = taskRatings[taskId];
+    if (!taskRating) return [];
+
+    return taskRating.ratings.map((rating) => ({
+      id: rating.userId,
+      username: rating.username,
+      organizationWeight: rating.organizationWeight, // peso del cliente en la organización
+      satisfaction: taskRating.clientSatisfaction, // satisfacción calculada para el requisito,
+      valoracion: rating.rating.clientWeight, // valoración del cliente con respecto al requisito
+    }));
   };
 
   return (
     <div className="w-full space-y-4 mt-10 relative">
-
       {session?.user?.isAdmin && (
-        <div className="flex mb-4 justify-between mr-4 ">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="gap-2">
-                <ArrowUpDown className="h-4 w-4" />
-                Ordenar por
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem onClick={() => setSortBy("none")}>
-                Mostrar todos {sortBy === "none" && "✓"}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleSort("satisfaction")}>
-                Satisfacción{" "}
-                {sortBy === "satisfaction" && (sortOrder === "asc" ? "↑" : "↓")}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleSort("effort")}>
-                Esfuerzo{" "}
-                {sortBy === "effort" && (sortOrder === "asc" ? "↑" : "↓")}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleSort("weight")}>
-                Valoración{" "}
-                {sortBy === "weight" && (sortOrder === "asc" ? "↑" : "↓")}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <div className="flex space-x-3 items-center">
-            <label htmlFor="effort-input" className="block text-sm font-medium text-gray-700">
-              Esfuerzo:
-            </label>
-            <input
-              id="effort-input"
-              type="number"
-              value={effortFilter}
-              onChange={handleInputChange}
-              min={0}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
-              placeholder="Introduce un valor"
-            />
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+          <div className="flex flex-col space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-base font-medium text-gray-900">
+                Filtro de Esfuerzo
+              </h3>
+              <span className="text-sm font-medium text-gray-500">
+                {effortFilter} / {effortLimit}
+              </span>
+            </div>
+            <div className="flex items-center space-x-4">
+              <Slider
+                value={[effortFilter]}
+                onValueChange={(value) => setEffortFilter(value[0])}
+                max={effortLimit}
+                step={1}
+                className="flex-1"
+              />
+              <input
+                type="number"
+                value={effortFilter}
+                onChange={handleInputChange}
+                min={0}
+                max={effortLimit}
+                className="w-16 px-2 py-1 text-center text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+                aria-label="Valor de esfuerzo"
+              />
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              Desliza para filtrar tareas por nivel de esfuerzo máximo
+            </p>
           </div>
-
         </div>
       )}
       <div className="border rounded-lg overflow-x-auto overscroll-x-contain touch-pan-x scrollbar-thin scrollbar-thumb-gray-300">
@@ -428,13 +518,16 @@ export function TaskTable({
               <TableHead className="p-2 sm:p-4 text-xs sm:text-sm w-[120px]">
                 Esfuerzo
               </TableHead>
+              <TableHead className="p-2 sm:p-4 text-xs sm:text-sm w-[80px]">
+                Incluir
+              </TableHead>
               <TableHead className="p-2 sm:p-4 text-xs sm:text-sm sticky right-0 bg-white z-20 w-[100px]">
                 Acciones
               </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {getSortedTasks().map((task) => (
+            {tasks.map((task) => (
               <TableRow key={task.id} className="divide-x divide-gray-200">
                 <TableCell className="p-2 sm:p-4 text-xs sm:text-sm break-words sticky left-0 bg-white">
                   {task.name}
@@ -459,13 +552,29 @@ export function TaskTable({
                 </TableCell>
                 */}
                 <TableCell className="p-2 sm:p-4 text-xs sm:text-sm">
-                  {taskRatings[task.id]?.clientSatisfaction ?? 0}
+                  <RatingCell
+                    taskId={task.id}
+                    value={taskRatings[task.id]?.clientSatisfaction ?? 0}
+                  />
                 </TableCell>
                 <TableCell className="p-2 sm:p-4 text-xs sm:text-sm">
-                  {taskRatings[task.id]?.clientWeight ?? 0}
+                  <RatingCell
+                    taskId={task.id}
+                    value={taskRatings[task.id]?.clientWeight ?? 0}
+                  />
                 </TableCell>
                 <TableCell className="p-2 sm:p-4 text-xs sm:text-sm">
-                  {taskRatings[task.id]?.effort ?? 0}
+                  {task.effort ?? 0}
+                </TableCell>
+                <TableCell className="p-2 sm:p-4 text-xs sm:text-sm">
+                  <Switch
+                    checked={!task.deselected}
+                    disabled={!session?.user?.isAdmin}
+                    onCheckedChange={() =>
+                      toggleTaskSelection(task.id, task.deselected ?? false)
+                    }
+                    aria-label="Incluir tarea en solución"
+                  />
                 </TableCell>
                 <TableCell className="p-2 sm:p-4 text-xs sm:text-sm sticky right-0 bg-white">
                   <Button
@@ -493,12 +602,34 @@ export function TaskTable({
         </Table>
       </div>
 
-      {session?.user?.isAdmin && (
-        <Button variant="default" className="gap-2" onClick={handleAddTask}>
-          <Plus className="h-4 w-4" />
-          Agregar Tarea
+      <div className="flex justify-between items-center mt-6">
+        {session?.user?.isAdmin && (
+          <Button variant="default" className="gap-2" onClick={handleAddTask}>
+            <Plus className="h-4 w-4" />
+            Añadir Tarea
+          </Button>
+        )}
+
+        <Button
+          variant="outline"
+          onClick={() => setShowSolution(!showSolution)}
+          className="ml-4"
+        >
+          {showSolution ? "Ocultar Solución" : "Ver Solución"}
         </Button>
+      </div>
+
+      {showSolution && (
+        <Solution
+          metrics={metrics}
+          tasks={tasks}
+          taskRatings={taskRatings}
+          effortFilter={effortFilter}
+          effortLimit={effortLimit}
+          clientRatings={getClientRatings(tasks[0]?.id)} // Pasar las valoraciones de los clientes
+        />
       )}
+
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -521,9 +652,9 @@ export function TaskTable({
                   setEditingTask(
                     editingTask
                       ? {
-                        ...editingTask,
-                        name: e.target.value,
-                      }
+                          ...editingTask,
+                          name: e.target.value,
+                        }
                       : null,
                   )
                 }
@@ -542,9 +673,9 @@ export function TaskTable({
                   setEditingTask(
                     editingTask
                       ? {
-                        ...editingTask,
-                        description: e.target.value,
-                      }
+                          ...editingTask,
+                          description: e.target.value,
+                        }
                       : null,
                   )
                 }
@@ -625,12 +756,12 @@ export function TaskTable({
                   setEditingTask(
                     editingTask
                       ? {
-                        ...editingTask,
-                        progress: Math.min(
-                          100,
-                          Math.max(0, Number(e.target.value)),
-                        ),
-                      }
+                          ...editingTask,
+                          progress: Math.min(
+                            100,
+                            Math.max(0, Number(e.target.value)),
+                          ),
+                        }
                       : null,
                   )
                 }
@@ -665,22 +796,32 @@ export function TaskTable({
               <Input
                 type="number"
                 id="peso"
-                value={editingTask?.weight || 0}
-
+                value={
+                  editingTask?.id
+                    ? editedValues.weight
+                    : (editingTask?.weight ?? 0)
+                }
                 min={0}
-                onChange={(e) =>
+                max={5}
+                step={1}
+                onChange={(e) => {
+                  const value = Math.min(
+                    5,
+                    Math.max(0, Number(e.target.value)),
+                  );
+                  setEditedValues((prev) => ({
+                    ...prev,
+                    weight: value,
+                  }));
                   setEditingTask(
                     editingTask
                       ? {
-                        ...editingTask,
-                        weight: Math.min(
-                          5,
-                          Math.max(0, Number(e.target.value)),
-                        ),
-                      }
+                          ...editingTask,
+                          weight: value,
+                        }
                       : null,
-                  )
-                }
+                  );
+                }}
                 className="col-span-3"
               />
             </div>
@@ -691,22 +832,25 @@ export function TaskTable({
               <Input
                 type="number"
                 id="esfuerzo"
-                value={editingTask?.effort || 0}
-
+                value={editingTask?.effort ?? 0}
+                disabled={!session?.user?.isAdmin}
                 min={0}
-                onChange={(e) =>
+                max={5}
+                step={1}
+                onChange={(e) => {
+                  const value = Math.min(
+                    5,
+                    Math.max(0, Number(e.target.value)),
+                  );
                   setEditingTask(
                     editingTask
                       ? {
-                        ...editingTask,
-                        effort: Math.min(
-                          5,
-                          Math.max(0, Number(e.target.value)),
-                        ),
-                      }
+                          ...editingTask,
+                          effort: value,
+                        }
                       : null,
-                  )
-                }
+                  );
+                }}
                 className="col-span-3"
               />
             </div>

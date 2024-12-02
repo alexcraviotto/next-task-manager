@@ -61,6 +61,25 @@ export default withAuth(
       return NextResponse.redirect(url);
     }
 
+    // Verificar acceso a organización
+    if (pathname.includes("/dashboard/organization/")) {
+      const organizationId = pathname.split("/")[3];
+
+      // Solo verificar acceso si no es una ruta de unirse o API
+      if (!pathname.includes("/join") && !pathname.startsWith("/api")) {
+        const userOrganizations = (token?.organizations || []) as {
+          id: string;
+        }[];
+        const isMember = userOrganizations.some(
+          (org) => org.id === organizationId,
+        );
+
+        if (!isMember && !token?.isAdmin) {
+          return NextResponse.redirect(`${origin}/dashboard/organization`);
+        }
+      }
+    }
+
     // Corregir redirección de usuarios no admin usando URL absoluta
     if (
       !token?.isAdmin &&
@@ -73,6 +92,7 @@ export default withAuth(
       const url = new URL(`/dashboard/organization/${orgId}/tasks`, origin);
       return NextResponse.redirect(url);
     }
+
     // Permitir el resto de las rutas
     return NextResponse.next();
   },

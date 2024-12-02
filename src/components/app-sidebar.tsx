@@ -20,8 +20,16 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useEffect, useState } from "react";
 import { sidebarItems, slugsToName } from "@/lib/types";
-import { ChevronDown, Settings, Plus, Loader2, Trash2 } from "lucide-react";
+import {
+  ChevronDown,
+  Settings,
+  Plus,
+  Loader2,
+  Trash2,
+  Settings2,
+} from "lucide-react";
 import CreateOrganization from "./dashboard/organization/createOrganization";
+import EditOrganization from "./dashboard/organization/editOrganization";
 import { useToast } from "@/hooks/use-toast";
 import { useOrganizations } from "@/hooks/use-organizations";
 
@@ -51,6 +59,12 @@ export function AppSidebar({ projectId }: { projectId: string | undefined }) {
   const [organizationToDelete, setOrganizationToDelete] = useState<
     string | null
   >(null);
+  const [showEditOrg, setShowEditOrg] = useState(false);
+  const [selectedOrg, setSelectedOrg] = useState<{
+    id: string;
+    name: string;
+    effortLimit?: number;
+  } | null>(null);
 
   const handleProjectChange = (id: string) => {
     router.push(`/dashboard/organization/${id}`);
@@ -81,7 +95,7 @@ export function AppSidebar({ projectId }: { projectId: string | undefined }) {
 
       // Si la organización eliminada es la actual, redirigir al dashboard
       if (projectId === organizationToDelete) {
-        router.push("/dashboard");
+        router.push("/dashboard/organization");
       }
 
       toast({
@@ -104,6 +118,21 @@ export function AppSidebar({ projectId }: { projectId: string | undefined }) {
 
   const handleOrgSelect = (orgId: string) => {
     handleProjectChange(orgId);
+  };
+
+  const handleEditClick = async (org: { id: string; name: string }) => {
+    try {
+      const response = await fetch(`/api/organizations/${org.id}`);
+      const data = await response.json();
+      setSelectedOrg({ ...org, effortLimit: data.effortLimit });
+      setShowEditOrg(true);
+    } catch (error) {
+      console.error("Error fetching organization details:", error);
+      toast({
+        variant: "destructive",
+        description: "Error al obtener detalles de la organización",
+      });
+    }
   };
 
   useEffect(() => {
@@ -171,22 +200,39 @@ export function AppSidebar({ projectId }: { projectId: string | undefined }) {
                       onClick={() => handleOrgSelect(org.id)}
                     >
                       <span className="flex-grow">{org.name}</span>
-                      {org.createdById === userId && (
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setOrganizationToDelete(org.id);
-                            setShowDeleteDialog(true);
-                          }}
-                          className="ml-2"
-                        >
-                          <Trash2
-                            size={16}
-                            className="text-destructive hover:text-destructive/90"
-                          />
-                        </button>
-                      )}
+                      <div className="ml-2 flex gap-2">
+                        {isAdmin && (
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleEditClick(org);
+                            }}
+                          >
+                            <Settings2
+                              size={16}
+                              className="text-gray-500 hover:text-gray-700"
+                            />
+                          </button>
+                        )}
+                        {org.createdById === userId && (
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setOrganizationToDelete(org.id);
+                              setShowDeleteDialog(true);
+                            }}
+                            className="ml-2"
+                          >
+                            <Trash2
+                              size={16}
+                              className="text-destructive hover:text-destructive/90"
+                              data-testid="delete-org-button"
+                            />
+                          </button>
+                        )}
+                      </div>
                     </DropdownMenuItem>
                   ))
                 )}
@@ -277,6 +323,24 @@ export function AppSidebar({ projectId }: { projectId: string | undefined }) {
               description: "Organización creada correctamente",
             });
           }}
+        />
+      )}
+      {showEditOrg && selectedOrg && (
+        <EditOrganization
+          isOpen={showEditOrg}
+          onClose={() => {
+            setShowEditOrg(false);
+            setSelectedOrg(null);
+          }}
+          onSuccess={() => {
+            toast({
+              description: "Organización actualizada correctamente",
+            });
+            window.location.reload();
+          }}
+          organizationId={selectedOrg.id}
+          organizationName={selectedOrg.name}
+          initialEffortLimit={selectedOrg.effortLimit}
         />
       )}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>

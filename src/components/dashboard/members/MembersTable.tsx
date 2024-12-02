@@ -83,6 +83,7 @@ export function MembersTable({
         body: JSON.stringify({
           organizationId: organizationId,
           newWeight: newWeight,
+          userId,
         }),
       });
       const data = await response.json();
@@ -254,7 +255,6 @@ export function MembersTable({
           description: "Invitación a la organización realizada exitosamente.",
           duration: 3000,
         });
-        setIsDialogOpen(false);
       } else {
         // Primero actualizamos el peso si ha cambiado
         const currentMember = members.find((m) => m.id === editingMember.id);
@@ -288,6 +288,7 @@ export function MembersTable({
         createdAt: "",
         updatedAt: "",
       });
+      console.log("Miembro guardado correctamente");
       setIsDialogOpen(false);
       setIsLoading(false);
     } catch (error) {

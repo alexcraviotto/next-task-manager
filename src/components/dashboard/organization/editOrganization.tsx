@@ -2,25 +2,28 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
-interface CreateOrganizationProps {
+interface EditOrganizationProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (organization: {
-    id: string;
-    name: string;
-    createdById: number;
-  }) => void;
+  onSuccess: () => void;
+  organizationId: string;
+  initialEffortLimit?: number;
+  organizationName: string;
 }
 
-export default function CreateOrganization({
+export default function EditOrganization({
   isOpen,
   onClose,
   onSuccess,
-}: CreateOrganizationProps) {
-  const [orgName, setOrgName] = useState("");
+  organizationId,
+  initialEffortLimit,
+  organizationName,
+}: EditOrganizationProps) {
+  const [effortLimit, setEffortLimit] = useState<number | "">(
+    initialEffortLimit || "",
+  );
   const [errorMessage, setErrorMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [effortLimit, setEffortLimit] = useState<number | "">("");
 
   const handleEffortLimitChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -29,37 +32,31 @@ export default function CreateOrganization({
     }
   };
 
-  const handleCreateOrganization = async (
+  const handleEditOrganization = async (
     e: React.FormEvent<HTMLFormElement>,
   ) => {
     e.preventDefault();
-    if (!orgName) {
-      setErrorMessage("El nombre de la organización es obligatorio.");
-      return;
-    }
-
     setIsLoading(true);
+
     try {
-      const response = await fetch("/api/organizations", {
-        method: "POST",
+      const response = await fetch(`/api/organizations/${organizationId}`, {
+        method: "PATCH",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ name: orgName, effortLimit }),
+        body: JSON.stringify({ effortLimit }),
       });
 
-      const data = await response.json();
-
       if (response.ok) {
-        onSuccess(data.organization);
-        setOrgName("");
-        setEffortLimit("");
+        onSuccess();
+        onClose();
       } else {
-        setErrorMessage(data.message || "Error al crear la organización");
+        const data = await response.json();
+        setErrorMessage(data.message || "Error al actualizar la organización");
       }
     } catch (error) {
       console.error(error);
-      setErrorMessage("Error de conexión al crear la organización");
+      setErrorMessage("Error de conexión al actualizar la organización");
     } finally {
       setIsLoading(false);
     }
@@ -71,27 +68,10 @@ export default function CreateOrganization({
     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
       <div className="bg-white w-full max-w-lg rounded-lg shadow-lg p-8">
         <h2 className="text-2xl font-bold text-gray-800 mb-4">
-          Crear una Nueva Organización
+          Editar Organización: {organizationName}
         </h2>
-        <p className="text-gray-600 mb-6">
-          Configure su organización para empezar a gestionar proyectos y
-          equipos.
-        </p>
         {errorMessage && <p className="text-red-500 mb-4">{errorMessage}</p>}
-        <form onSubmit={handleCreateOrganization}>
-          <div className="mb-4">
-            <label className="block text-sm font-semibold mb-2 text-gray-700">
-              Nombre de la organización
-            </label>
-            <input
-              type="text"
-              placeholder="Introduzca el nombre de la organización"
-              value={orgName}
-              onChange={(e) => setOrgName(e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-black"
-              disabled={isLoading}
-            />
-          </div>
+        <form onSubmit={handleEditOrganization}>
           <div className="mb-4">
             <label
               htmlFor="effortLimit"
@@ -122,7 +102,7 @@ export default function CreateOrganization({
               className="bg-black text-white p-3 rounded-lg"
               disabled={isLoading}
             >
-              {isLoading ? "Creando..." : "Crear organización"}
+              {isLoading ? "Actualizando..." : "Actualizar"}
             </Button>
           </div>
         </form>

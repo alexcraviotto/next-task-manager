@@ -35,6 +35,7 @@ model Organization {
   createdById Int
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
+  effort_limit      Int                @default(0)
   users     UserOrganization[] @relation("OrganizationToUserOrganization")
   tasks     Task[]            @relation("OrganizationToTask")
   versions  Version[]         @relation("OrganizationToVersion")
@@ -65,7 +66,8 @@ model Task {
   createdById    Int
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-
+  deselected    Boolean     @default(false)  // Nuevo campo para orden manual
+  effort       Int         @default(0)      // Nuevo campo para esfuerzo
   organization   Organization @relation("OrganizationToTask", fields: [organizationId], references: [id], onDelete: Cascade)
   createdBy    User          @relation("UserTasks", fields: [createdById], references: [id])
   taskRatings  TaskRating[]
@@ -92,7 +94,6 @@ model TaskRating {
   userId             Int
   clientSatisfaction Int? @default(0) @map("client_satisfaction")
   clientWeight       Int? @default(0) @map("client_weight")
-  effort             Int? @default(0)
   task               Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
   user               User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

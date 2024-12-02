@@ -29,8 +29,9 @@ export function useTasks(organizationId: string) {
 
   const addTask = async (newTask: Omit<Task, "id">) => {
     if (newTask.weight < 0 || newTask.weight > 5) {
-      throw new Error("Weight must be between 0 and 5");
+      throw new Error("El peso debe estar entre 0 y 5");
     }
+
     try {
       const response = await fetch("/api/tasks", {
         method: "POST",
@@ -52,7 +53,7 @@ export function useTasks(organizationId: string) {
       updates.weight !== undefined &&
       (updates.weight < 0 || updates.weight > 5)
     ) {
-      throw new Error("Weight must be between 0 and 5");
+      throw new Error("El peso debe estar entre 0 y 5");
     }
     try {
       const response = await fetch(`/api/tasks/${taskId}`, {
