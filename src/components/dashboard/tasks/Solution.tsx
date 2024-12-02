@@ -149,8 +149,8 @@ export default function Solution({
         (acc, curr) =>
           acc +
           clientWeight *
-            (curr.ratings.find((r) => r.userId === clientRating.id)?.rating
-              ?.clientWeight ?? 0),
+          (curr.ratings.find((r) => r.userId === clientRating.id)?.rating
+            ?.clientWeight ?? 0),
         0,
       );
 
@@ -189,7 +189,7 @@ export default function Solution({
   return (
     <div className="mt-8 space-y-6 bg-gray-50 p-6 rounded-lg border border-gray-200">
       {/* Métricas Globales Panel */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      {/* <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
           <h3 className="text-sm font-medium text-gray-500">
             Productividad Global
@@ -218,8 +218,8 @@ export default function Solution({
           <p className="text-2xl font-bold text-pink-600">
             {metrics.totalSatisfaction.toFixed(1)}
           </p>
-        </div>
-      </div>
+        </div> */}
+      {/* </div> */}
 
       {/* Tabla Detallada */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
