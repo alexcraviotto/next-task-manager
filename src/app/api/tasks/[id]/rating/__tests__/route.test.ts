@@ -15,8 +15,14 @@ jest.mock("next-auth", () => ({
 
 jest.mock("@/lib/database", () => ({
   prisma: {
+    task: {
+      findUnique: jest.fn(),
+    },
+    userOrganization: {
+      findMany: jest.fn(),
+    },
     taskRating: {
-      findFirst: jest.fn(),
+      findMany: jest.fn(),
     },
   },
 }));
@@ -49,22 +55,70 @@ describe("GET task rating endpoint", () => {
       user: { email: "test@example.com" },
     });
 
-    // Simular que encontramos una calificación en la base de datos
-    const mockRating = {
-      effort: 5,
-      clientWeight: 3,
-      clientSatisfaction: 4,
+    // Simular que encontramos una tarea en la base de datos con su organización
+    const mockTask = {
+      id: 1,
+      organizationId: "org1",
+      organization: {
+        id: "org1",
+        name: "Test Org",
+      },
     };
-    (prisma.taskRating.findFirst as jest.Mock).mockResolvedValue(mockRating);
+    (prisma.task.findUnique as jest.Mock).mockResolvedValue(mockTask);
 
-    const request = new NextRequest(
-      new Request("http://localhost:3001"),
-    ) as unknown as NextRequest;
+    // Simular miembros de la organización
+    const mockOrganizationMembers = [
+      {
+        userId: 1,
+        organizationId: "org1",
+        weight: 1,
+        User: {
+          id: 1,
+          username: "user1",
+          email: "user1@example.com",
+        },
+      },
+    ];
+    (prisma.userOrganization.findMany as jest.Mock).mockResolvedValue(
+      mockOrganizationMembers,
+    );
+
+    // Simular ratings de la tarea
+    const mockTaskRatings = [
+      {
+        taskId: 1,
+        userId: 1,
+        clientWeight: 3,
+        clientSatisfaction: 4,
+      },
+    ];
+    (prisma.taskRating.findMany as jest.Mock).mockResolvedValue(
+      mockTaskRatings,
+    );
+
+    const request = new NextRequest("http://localhost:3001/api/tasks/1/rating");
     const response = await GET(request, { params: { id: "1" } });
 
     expect(response.status).toBe(200);
     const data = await response.json();
-    expect(data).toEqual(mockRating);
+    expect(data).toEqual({
+      taskId: 1,
+      totalSatisfaction: 3, // 1 (weight) * 3 (clientWeight)
+      ratings: [
+        {
+          userId: 1,
+          username: "user1",
+          email: "user1@example.com",
+          organizationWeight: 1,
+          rating: {
+            taskId: 1,
+            userId: 1,
+            clientWeight: 3,
+            clientSatisfaction: 4,
+          },
+        },
+      ],
+    });
   });
 
   // Test 3: Cuando no existe calificación
@@ -74,8 +128,31 @@ describe("GET task rating endpoint", () => {
       user: { email: "test@example.com" },
     });
 
-    // Simular que no encontramos calificación
-    (prisma.taskRating.findFirst as jest.Mock).mockResolvedValue(null);
+    // Simular que encontramos una tarea en la base de datos
+    const mockTask = {
+      id: 1,
+      organizationId: 1,
+    };
+    (prisma.task.findUnique as jest.Mock).mockResolvedValue(mockTask);
+
+    // Simular miembros de la organización
+    const mockOrganizationMembers = [
+      {
+        userId: 1,
+        weight: 1,
+        User: {
+          id: 1,
+          username: "user1",
+          email: "user1@example.com",
+        },
+      },
+    ];
+    (prisma.userOrganization.findMany as jest.Mock).mockResolvedValue(
+      mockOrganizationMembers,
+    );
+
+    // Simular que no encontramos ratings de la tarea
+    (prisma.taskRating.findMany as jest.Mock).mockResolvedValue([]);
 
     const request = new NextRequest(
       new Request("http://localhost:3001"),
@@ -85,9 +162,20 @@ describe("GET task rating endpoint", () => {
     expect(response.status).toBe(200);
     const data = await response.json();
     expect(data).toEqual({
-      effort: 0,
-      clientWeight: 0,
-      clientSatisfaction: 0,
+      taskId: 1,
+      totalSatisfaction: 0,
+      ratings: [
+        {
+          userId: 1,
+          username: "user1",
+          email: "user1@example.com",
+          organizationWeight: 1,
+          rating: {
+            clientWeight: 0,
+            clientSatisfaction: 0,
+          },
+        },
+      ],
     });
   });
 
@@ -99,7 +187,7 @@ describe("GET task rating endpoint", () => {
     });
 
     // Simular un error en la consulta a la base de datos
-    (prisma.taskRating.findFirst as jest.Mock).mockRejectedValue(
+    (prisma.task.findUnique as jest.Mock).mockRejectedValue(
       new Error("Database connection error"),
     );
 
@@ -113,7 +201,7 @@ describe("GET task rating endpoint", () => {
 
     // Verificar que se llamó a console.error con el mensaje correcto
     expect(consoleErrorSpy).toHaveBeenCalledWith(
-      "Error fetching task rating:",
+      "Error fetching task ratings:",
       expect.any(Error),
     );
 

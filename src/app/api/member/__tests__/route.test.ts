@@ -58,10 +58,9 @@ describe("PATCH /api/member/route - Update User Weights and Ratings", () => {
     (getServerSession as jest.Mock).mockResolvedValue({
       user: { email: "test@example.com" },
     });
-    (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
 
     const response = await PATCH(
-      mockRequest({ organizationId: "org123", newWeight: 3 }),
+      mockRequest({ organizationId: "org123", userId: 1, newWeight: 3 }), // Add userId
     );
 
     expect(response.status).toBe(404);
@@ -78,7 +77,7 @@ describe("PATCH /api/member/route - Update User Weights and Ratings", () => {
     (prisma.userOrganization.findUnique as jest.Mock).mockResolvedValue(null);
 
     const response = await PATCH(
-      mockRequest({ organizationId: "org123", newWeight: 3 }),
+      mockRequest({ organizationId: "org123", userId: 1, newWeight: 3 }), // Add userId
     );
 
     expect(response.status).toBe(404);
@@ -93,7 +92,7 @@ describe("PATCH /api/member/route - Update User Weights and Ratings", () => {
     });
 
     const response = await PATCH(
-      mockRequest({ organizationId: "org123", newWeight: -1 }), // Peso inválido
+      mockRequest({ organizationId: "org123", userId: 1, newWeight: -1 }), // Add userId
     );
 
     expect(response.status).toBe(400);
@@ -151,7 +150,7 @@ describe("PATCH /api/member/route - Update User Weights and Ratings", () => {
     });
 
     const response = await PATCH(
-      mockRequest({ organizationId: "org123", newWeight: 3 }),
+      mockRequest({ organizationId: "org123", userId: 1, newWeight: 3 }), // Add userId
     );
 
     expect(response.status).toBe(200);
@@ -179,7 +178,7 @@ describe("PATCH /api/member/route - Update User Weights and Ratings", () => {
     const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation();
 
     const response = await PATCH(
-      mockRequest({ organizationId: "org123", newWeight: 3 }),
+      mockRequest({ organizationId: "org123", userId: 1, newWeight: 3 }), // Add userId
     );
 
     expect(response.status).toBe(500);

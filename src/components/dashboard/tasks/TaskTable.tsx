@@ -34,7 +34,12 @@ import Solution from "./Solution";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
-
+import {
+  TaskRating,
+  TaskRatingResponse,
+  OrganizationMember,
+  ClientRating,
+} from "@/lib/types";
 interface TaskTableProps {
   projectId: string;
   tasks: Task[];
@@ -79,24 +84,50 @@ export function TaskTable({
   // TaskRating
   const [taskRatings, setTaskRatings] = useState<{
     [key: number]: {
-      clientSatisfaction: number;
       clientWeight: number;
-      effort: number;
+      clientSatisfaction: number;
+      ratings: TaskRating[];
     };
   }>({});
   const [loadingRatings, setLoadingRatings] = useState<Record<number, boolean>>(
     {},
   );
 
+  // Añadir estado para los miembros de la organización
+  const [organizationMembers, setOrganizationMembers] = useState<
+    OrganizationMember[]
+  >([]);
+
+  // Función para cargar los miembros de la organización
+  const loadOrganizationMembers = async () => {
+    try {
+      const response = await fetch(`/api/organizations/${projectId}/members`);
+      if (!response.ok) throw new Error("Failed to fetch members");
+      const data: OrganizationMember[] = await response.json();
+      setOrganizationMembers(data);
+    } catch (error) {
+      console.error("Error loading organization members:", error);
+    }
+  };
+
   const loadTaskRatings = async (taskId: number) => {
     try {
       setLoadingRatings((prev) => ({ ...prev, [taskId]: true }));
+
       const response = await fetch(`/api/tasks/${taskId}/rating`);
       if (!response.ok) throw new Error("Failed to fetch ratings");
-      const data = await response.json();
+      const data: TaskRatingResponse = await response.json();
+
       setTaskRatings((prev) => ({
         ...prev,
-        [taskId]: data,
+        [taskId]: {
+          clientSatisfaction: data.totalSatisfaction,
+          clientWeight: session?.user
+            ? (data.ratings.find((r) => r.userId === Number(session?.user?.id))
+                ?.rating?.clientWeight ?? 0)
+            : 0,
+          ratings: data.ratings,
+        },
       }));
     } catch (error) {
       console.error("Error loading task ratings:", error);
@@ -106,16 +137,25 @@ export function TaskTable({
   };
 
   useEffect(() => {
+    tasks.forEach((task) => {
+      loadTaskRatings(task.id);
+    });
     fetch(`/api/organizations/${projectId}`)
       .then((res) => res.json())
       .then((data) => setEffortLimit(data.effortLimit));
   }, []);
-  // Modifica el useEffect para cargar los ratings iniciales
+
   useEffect(() => {
-    tasks.forEach((task) => {
-      loadTaskRatings(task.id);
-    });
-  }, []);
+    loadOrganizationMembers();
+  }, [projectId]);
+
+  useEffect(() => {
+    if (organizationMembers.length > 0) {
+      tasks.forEach((task) => {
+        loadTaskRatings(task.id);
+      });
+    }
+  }, [tasks, organizationMembers]);
 
   //
   const handleAddTask = () => {
@@ -150,14 +190,16 @@ export function TaskTable({
     // Resetear los valores editados cuando se abre el diálogo
     setEditedValues({
       weight: taskRatings[task.id]?.clientWeight ?? 0,
-      effort: taskRatings[task.id]?.effort ?? 0,
     });
     setIsDialogOpen(true);
   };
 
   const updateTaskRating = async (
     taskId: number,
-    data: { organizationId?: string; effort?: number; clientWeight?: number },
+    data: {
+      organizationId?: string;
+      clientWeight?: number;
+    },
   ) => {
     setIsLoading(true);
     console.log("Loading: ", isLoading);
@@ -165,7 +207,6 @@ export function TaskTable({
     console.log("Error: ", error);
 
     console.log("organizationId: ", data.organizationId);
-    console.log("effort: ", data.effort);
     console.log("clientWeight: ", data.clientWeight);
     try {
       const response = await fetch(`/api/tasks/${taskId}/feedback`, {
@@ -238,13 +279,11 @@ export function TaskTable({
         // Crear objeto de actualización con valores seguros
         const updateData = {
           organizationId: projectId,
-          effort: editedValues.effort ?? 0,
           clientWeight: editedValues.weight ?? 0, // Usar 0 si weight es undefined
         };
 
         console.log("Valores a enviar:", updateData);
-
-        await updateTaskRating(editingTask.id, updateData);
+        await updateTaskRating(updatedTask.id, updateData);
 
         toast({
           title: "Tarea actualizada",
@@ -252,7 +291,6 @@ export function TaskTable({
         });
       } else {
         // Si es una nueva tarea
-
         updatedTask = await onAddTask(editingTask as Omit<Task, "id">);
         console.log(
           "🚀 ~ handleSaveTask ~ updatedTask:",
@@ -261,7 +299,6 @@ export function TaskTable({
 
         const updateData = {
           organizationId: projectId,
-          effort: editedValues.effort ?? 0,
           clientWeight: editedValues.weight ?? 0, // Usar 0 si weight es undefined
         };
         await updateTaskRating(updatedTask.id, updateData);
@@ -359,8 +396,8 @@ export function TaskTable({
       ratings: taskRatings[task.id] || {
         clientSatisfaction: 0,
         clientWeight: 0,
-        effort: 0,
       },
+      effort: task.effort,
     }));
 
     const newMetrics = calculations.calculateGlobalMetrics(tasksWithRatings);
@@ -394,6 +431,19 @@ export function TaskTable({
         description: "No se pudo actualizar el estado de la tarea",
       });
     }
+  };
+
+  const getClientRatings = (taskId: number): ClientRating[] => {
+    const taskRating = taskRatings[taskId];
+    if (!taskRating) return [];
+
+    return taskRating.ratings.map((rating) => ({
+      id: rating.userId,
+      username: rating.username,
+      organizationWeight: rating.organizationWeight, // peso del cliente en la organización
+      satisfaction: taskRating.clientSatisfaction, // satisfacción calculada para el requisito,
+      valoracion: rating.rating.clientWeight, // valoración del cliente con respecto al requisito
+    }));
   };
 
   return (
@@ -514,14 +564,12 @@ export function TaskTable({
                   />
                 </TableCell>
                 <TableCell className="p-2 sm:p-4 text-xs sm:text-sm">
-                  <RatingCell
-                    taskId={task.id}
-                    value={taskRatings[task.id]?.effort ?? 0}
-                  />
+                  {task.effort ?? 0}
                 </TableCell>
                 <TableCell className="p-2 sm:p-4 text-xs sm:text-sm">
                   <Switch
                     checked={!task.deselected}
+                    disabled={!session?.user?.isAdmin}
                     onCheckedChange={() =>
                       toggleTaskSelection(task.id, task.deselected ?? false)
                     }
@@ -578,6 +626,7 @@ export function TaskTable({
           taskRatings={taskRatings}
           effortFilter={effortFilter}
           effortLimit={effortLimit}
+          clientRatings={getClientRatings(tasks[0]?.id)} // Pasar las valoraciones de los clientes
         />
       )}
 
@@ -783,11 +832,8 @@ export function TaskTable({
               <Input
                 type="number"
                 id="esfuerzo"
-                value={
-                  editingTask?.id
-                    ? editedValues.effort
-                    : (editingTask?.effort ?? 0)
-                }
+                value={editingTask?.effort ?? 0}
+                disabled={!session?.user?.isAdmin}
                 min={0}
                 max={5}
                 step={1}
@@ -796,10 +842,6 @@ export function TaskTable({
                     5,
                     Math.max(0, Number(e.target.value)),
                   );
-                  setEditedValues((prev) => ({
-                    ...prev,
-                    effort: value,
-                  }));
                   setEditingTask(
                     editingTask
                       ? {

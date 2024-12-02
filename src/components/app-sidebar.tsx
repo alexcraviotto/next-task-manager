@@ -95,7 +95,7 @@ export function AppSidebar({ projectId }: { projectId: string | undefined }) {
 
       // Si la organización eliminada es la actual, redirigir al dashboard
       if (projectId === organizationToDelete) {
-        router.push("/dashboard");
+        router.push("/dashboard/organization");
       }
 
       toast({
@@ -336,6 +336,7 @@ export function AppSidebar({ projectId }: { projectId: string | undefined }) {
             toast({
               description: "Organización actualizada correctamente",
             });
+            window.location.reload();
           }}
           organizationId={selectedOrg.id}
           organizationName={selectedOrg.name}

@@ -7,19 +7,29 @@ import { authOptions } from "@/lib/authOptions";
 const updateRatingsSchema = z.object({
   organizationId: z.string(),
   newWeight: z.number().min(0).int(),
+  userId: z.number(),
 });
 
 export async function PATCH(req: NextRequest) {
   try {
-    // Obtenemos sesion del usuario
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Obtenemos tastRating del usuario
+    const body = await req.json();
+
+    // First check if body has required fields before validation
+    if (!body.organizationId || !body.newWeight || !body.userId) {
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 },
+      );
+    }
+
+    // Check user exists first
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
+      where: { id: body.userId },
       include: {
         taskRatings: {
           include: {
@@ -32,15 +42,15 @@ export async function PATCH(req: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
-
-    const body = await req.json();
-    const { organizationId, newWeight } = updateRatingsSchema.parse(body);
+    // Finally validate the input data
+    const { organizationId, newWeight, userId } =
+      updateRatingsSchema.parse(body);
 
     // Obtenemos las diferentes filas del usuario en la tabla userOrganization
     const userOrg = await prisma.userOrganization.findUnique({
       where: {
         userId_organizationId: {
-          userId: user.id,
+          userId,
           organizationId: organizationId,
         },
       },
@@ -52,7 +62,6 @@ export async function PATCH(req: NextRequest) {
         { status: 404 },
       );
     }
-
     // Si el peso del usuario ha cambiado, entonces cambia la satistfacion de las taskRating
     // Obtenemos el peso anterior del usuario
     const previousWeight = userOrg.weight;
@@ -103,7 +112,7 @@ export async function PATCH(req: NextRequest) {
     await prisma.userOrganization.update({
       where: {
         userId_organizationId: {
-          userId: user.id,
+          userId,
           organizationId,
         },
       },

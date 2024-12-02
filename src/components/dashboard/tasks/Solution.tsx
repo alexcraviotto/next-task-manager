@@ -8,12 +8,21 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TaskRating, ClientRating } from "@/lib/types";
+
+interface ExtendedClientMetrics extends ClientRating {
+  coverage: number;
+  contributionToTotal: number;
+  contributionToRequirement: number;
+}
+
 export default function Solution({
   metrics,
   effortLimit,
   tasks,
   taskRatings,
   effortFilter,
+  clientRatings,
 }: {
   metrics: {
     totalProductivity: number;
@@ -27,27 +36,69 @@ export default function Solution({
     [key: number]: {
       clientSatisfaction: number;
       clientWeight: number;
-      effort: number;
+      ratings: TaskRating[];
     };
   };
   effortFilter: number;
+  clientRatings: ClientRating[];
 }) {
+  // Helper function to calculate client metrics
+  const calculateClientMetrics = (
+    taskRating: (typeof taskRatings)[number],
+    clientRating: ClientRating,
+    task: Task,
+    totalSatisfaction: number,
+  ): ExtendedClientMetrics => {
+    const clientWeight = clientRating.organizationWeight;
+    const clientValoracion = clientRating.valoracion;
+    const taskSatisfaction = taskRating.clientSatisfaction;
+
+    // Calcular contribución al total
+    const contributionToTotal =
+      (clientWeight * clientValoracion) / totalSatisfaction;
+
+    // Calcular contribución al requisito
+    const contributionToRequirement =
+      (clientWeight * clientValoracion) / taskSatisfaction;
+
+    // Calcular cobertura
+    const coverage = clientValoracion / clientWeight;
+
+    return {
+      ...clientRating,
+      coverage,
+      contributionToTotal,
+      contributionToRequirement,
+    };
+  };
+
   const filteredTasks = tasks
     .filter((task) => !task.deselected) // Filtrar tareas no deseleccionadas
     .map((task) => {
       const rating = taskRatings[task.id] || {
         clientSatisfaction: 0,
         clientWeight: 0,
-        effort: 0,
       };
       const productivity = calculations.calculateProductivity(
         rating.clientSatisfaction,
-        rating.effort,
+        task.effort,
       );
+      const contributionToTotal = calculations.calculateContributionToCliente(
+        rating.clientSatisfaction,
+        metrics.totalSatisfaction,
+      );
+      const contributionToRequirement =
+        calculations.calculateContributionToRequirement(
+          rating.clientWeight,
+          rating.clientSatisfaction,
+          rating.clientSatisfaction,
+        );
       return {
         task,
         rating,
         productivity,
+        contributionToTotal,
+        contributionToRequirement,
       };
     })
     .sort((a, b) => {
@@ -64,11 +115,11 @@ export default function Solution({
           effortFilter > 0 ? Math.min(effortFilter, effortLimit) : effortLimit;
 
         const totalEffortSoFar = acc.reduce(
-          (sum, item) => sum + item.rating.effort,
+          (sum, item) => sum + item.task.effort,
           0,
         );
 
-        if (totalEffortSoFar + curr.rating.effort <= effectiveLimit) {
+        if (totalEffortSoFar + curr.task.effort <= effectiveLimit) {
           acc.push(curr);
         }
 
@@ -78,130 +129,198 @@ export default function Solution({
         task: Task;
         rating: (typeof taskRatings)[number];
         productivity: number;
+        contributionToTotal: number;
+        contributionToRequirement: number;
       }>,
     );
 
   return (
     <div className="mt-8 space-y-6 bg-gray-50 p-6 rounded-lg border border-gray-200">
-      <h2 className="text-2xl font-semibold mb-4">Análisis de Solución</h2>
-
-      {/* Métricas principales */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-white p-4 rounded-lg shadow">
+      {/* Métricas Globales Panel */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
           <h3 className="text-sm font-medium text-gray-500">
-            Productividad Total
+            Productividad Global
           </h3>
           <p className="text-2xl font-bold text-pink-600">
-            {metrics.totalProductivity}
+            {metrics.totalProductivity.toFixed(2)}
           </p>
         </div>
-        <div className="bg-white p-4 rounded-lg shadow">
-          <h3 className="text-sm font-medium text-gray-500">
-            Cobertura Cliente
-          </h3>
+        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+          <h3 className="text-sm font-medium text-gray-500">Cobertura Total</h3>
           <p className="text-2xl font-bold text-pink-600">
-            {(metrics.coverage * 100).toFixed(0)}%
+            {(metrics.coverage * 100).toFixed(1)}%
           </p>
         </div>
-        <div className="bg-white p-4 rounded-lg shadow">
+        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
           <h3 className="text-sm font-medium text-gray-500">Esfuerzo Total</h3>
           <p className="text-2xl font-bold text-pink-600">
-            {metrics.totalEffort}/{effortLimit}
+            {filteredTasks.reduce((sum, item) => sum + item.task.effort, 0)}/
+            {effortLimit}
+          </p>
+        </div>
+        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+          <h3 className="text-sm font-medium text-gray-500">
+            Satisfacción Total
+          </h3>
+          <p className="text-2xl font-bold text-pink-600">
+            {metrics.totalSatisfaction.toFixed(1)}
           </p>
         </div>
       </div>
 
-      {/* Tabla de Análisis Detallado */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      {/* Tabla Detallada */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <Table>
-          <TableHeader>
+          <TableHeader className="bg-gray-50">
             <TableRow>
-              <TableHead>Requisito</TableHead>
-              <TableHead>Productividad</TableHead>
-              <TableHead>Contribución</TableHead>
-              <TableHead>Cobertura</TableHead>
-              <TableHead>Esfuerzo</TableHead>
-              <TableHead>Prioridad</TableHead>
+              <TableHead className="font-semibold">Requisito</TableHead>
+              <TableHead className="font-semibold text-center">
+                Esfuerzo
+              </TableHead>
+              <TableHead className="font-semibold text-center">
+                Satisfacción Total
+              </TableHead>
+              <TableHead className="font-semibold text-center">
+                Productividad
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredTasks.map(({ task, rating, productivity }) => {
-              const contribution = calculations.calculateContribution(
-                rating.clientSatisfaction,
-                metrics.totalSatisfaction,
-              );
-
-              return (
-                <TableRow key={`solution-${task.id}`}>
-                  <TableCell className="font-medium">
-                    {task.name}
-                    <span className="ml-2 text-xs text-gray-500">
-                      (Satisfacción: {rating.clientSatisfaction})
+            {filteredTasks.map(({ task, rating, productivity }) => (
+              <>
+                {/* Fila principal del requisito */}
+                <TableRow
+                  key={`solution-${task.id}`}
+                  className="hover:bg-gray-50 transition-colors bg-gray-50"
+                >
+                  <TableCell className="font-medium">{task.name}</TableCell>
+                  <TableCell className="text-center">
+                    <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800">
+                      {task.effort}
                     </span>
                   </TableCell>
-                  <TableCell>{productivity.toFixed(2)}</TableCell>
-                  <TableCell>{contribution.toFixed(2)}</TableCell>
-                  <TableCell>
-                    {calculations.calculateCoverage(
-                      rating.clientSatisfaction,
-                      rating.clientWeight * 5,
-                    )}
+                  <TableCell className="text-center">
+                    <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full bg-green-100 text-green-800">
+                      {rating.clientSatisfaction}
+                    </span>
                   </TableCell>
-                  <TableCell>{rating.effort}</TableCell>
-                  <TableCell>
-                    <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        productivity > 1
-                          ? "bg-green-100 text-green-800"
-                          : "bg-yellow-100 text-yellow-800"
-                      }`}
-                    >
-                      {productivity > 1 ? "Alta" : "Media"}
+                  <TableCell className="text-center">
+                    <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800">
+                      {productivity.toFixed(2)}
                     </span>
                   </TableCell>
                 </TableRow>
-              );
-            })}
+
+                {/* Subencabezado para clientes */}
+                <TableRow className="bg-gray-100/50 text-sm">
+                  <TableCell colSpan={5} className="py-2">
+                    <div className="font-medium text-gray-500">
+                      Valoraciones por Cliente:
+                    </div>
+                  </TableCell>
+                </TableRow>
+
+                {/* Detalles de cada cliente */}
+                {clientRatings.map((clientRating) => {
+                  const metrics = calculateClientMetrics(
+                    rating,
+                    clientRating,
+                    task,
+                    rating.clientSatisfaction,
+                  );
+
+                  return (
+                    <TableRow
+                      key={`client-${task.id}-${metrics.id}`}
+                      className="text-sm border-b border-gray-100"
+                    >
+                      <TableCell className="pl-8 text-gray-600">
+                        {metrics.username}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs rounded-full bg-blue-50 text-blue-700">
+                          Peso: {metrics.organizationWeight}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs rounded-full bg-pink-50 text-pink-700">
+                          Valor: {metrics.valoracion}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex flex-col gap-1">
+                          <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs rounded-full bg-purple-50 text-purple-700">
+                            Cont. Cliente:{" "}
+                            {(metrics.contributionToTotal * 100).toFixed(1)}%
+                          </span>
+                          <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs rounded-full bg-green-50 text-green-700">
+                            Cont. Req:{" "}
+                            {(metrics.contributionToRequirement * 100).toFixed(
+                              1,
+                            )}
+                            %
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs rounded-full bg-yellow-50 text-yellow-700">
+                          Cobertura: {(metrics.coverage * 100).toFixed(1)}%
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </>
+            ))}
           </TableBody>
         </Table>
       </div>
 
-      {/* Información del filtro y métricas de la solución */}
-      <div className="bg-white p-4 rounded-lg shadow">
-        <p className="text-sm text-gray-600">
-          Esfuerzo máximo permitido:{" "}
-          {effortFilter > 0 ? Math.min(effortFilter, effortLimit) : effortLimit}
-        </p>
-        <p className="text-sm text-gray-600">
-          Esfuerzo total utilizado:{" "}
-          {filteredTasks.reduce((sum, item) => sum + item.rating.effort, 0)}
-        </p>
-        <p className="text-sm text-gray-600">
-          Tareas seleccionadas: {filteredTasks.length} de {tasks.length}
-        </p>
-        <p className="text-sm text-gray-600">
-          Tareas excluidas manualmente:{" "}
-          {tasks.filter((t) => t.deselected).length}
-        </p>
-      </div>
+      {/* Resumen y Estadísticas */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+          <h3 className="text-lg font-medium mb-3">Resumen de Selección</h3>
+          <ul className="space-y-2 text-sm">
+            <li className="flex justify-between">
+              <span className="text-gray-600">Tareas Seleccionadas:</span>
+              <span className="font-medium">
+                {filteredTasks.length} de {tasks.length}
+              </span>
+            </li>
+            <li className="flex justify-between">
+              <span className="text-gray-600">Esfuerzo Utilizado:</span>
+              <span className="font-medium">
+                {filteredTasks.reduce((sum, item) => sum + item.task.effort, 0)}{" "}
+                de {effortLimit}
+              </span>
+            </li>
+            <li className="flex justify-between">
+              <span className="text-gray-600">Tareas Excluidas:</span>
+              <span className="font-medium">
+                {tasks.filter((t) => t.deselected).length}
+              </span>
+            </li>
+          </ul>
+        </div>
 
-      {/* Recomendaciones */}
-      <div className="bg-white p-6 rounded-lg shadow">
-        <h3 className="text-lg font-medium mb-4">Recomendaciones</h3>
-        <ul className="space-y-2">
-          <li className="flex items-start">
-            <span className="flex-shrink-0 h-5 w-5 text-green-500">✓</span>
-            <span className="ml-2 text-sm text-gray-600">
-              Priorizar tareas con alta productividad y baja contribución
-            </span>
-          </li>
-          <li className="flex items-start">
-            <span className="flex-shrink-0 h-5 w-5 text-yellow-500">!</span>
-            <span className="ml-2 text-sm text-gray-600">
-              Revisar requisitos con baja cobertura
-            </span>
-          </li>
-        </ul>
+        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+          <h3 className="text-lg font-medium mb-3">Recomendaciones</h3>
+          <ul className="space-y-2 text-sm">
+            <li className="flex items-start gap-2">
+              <span className="text-green-500">✓</span>
+              <span className="text-gray-600">
+                Priorizar tareas con alta productividad
+              </span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-yellow-500">!</span>
+              <span className="text-gray-600">
+                Revisar requisitos con baja cobertura
+              </span>
+            </li>
+          </ul>
+        </div>
       </div>
     </div>
   );
